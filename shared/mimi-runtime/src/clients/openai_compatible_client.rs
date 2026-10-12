@@ -76,6 +76,7 @@ impl OpenAICompatibleClient {
             source.unwrap_or(self.source),
             self.target,
             &self.model,
+            &self.endpoint,
         )?;
         tokio::time::timeout(self.timeout, async {
             crate::development_content::request(
