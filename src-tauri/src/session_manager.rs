@@ -4678,6 +4678,7 @@ impl SessionManager {
     /// preference writes so no window keeps a stale selection, and when a
     /// window re-shows in case its webview missed events while hidden).
     pub fn publish_settings(&self) {
+        self.copilot.refresh_availability();
         crate::commands::sync_overlay_minimum(&self.app);
         if let Ok(payload) =
             crate::commands::SettingsSnapshotPayload::try_from_store(&self.settings)

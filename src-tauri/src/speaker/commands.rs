@@ -1,5 +1,6 @@
 use super::voiceprint::{SpeakerService, VoiceprintStatus};
 use crate::commands::AppState;
+use crate::copilot::engine::CopilotEngine;
 use crate::settings_store::SettingsStore;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
@@ -21,6 +22,7 @@ pub async fn speaker_voiceprint_import(
     app: AppHandle,
     service: State<'_, Arc<SpeakerService>>,
     settings: State<'_, Arc<SettingsStore>>,
+    copilot: State<'_, Arc<CopilotEngine>>,
     path: String,
 ) -> Result<VoiceprintStatus, String> {
     if settings.is_ui_test() {
@@ -44,7 +46,9 @@ pub async fn speaker_voiceprint_import(
     } else {
         std::path::PathBuf::from(path)
     };
-    service.import(path).await
+    let status = service.import(path).await?;
+    copilot.refresh_availability();
+    Ok(status)
 }
 
 #[tauri::command]
@@ -70,6 +74,7 @@ pub async fn speaker_voiceprint_record_stop(
     service: State<'_, Arc<SpeakerService>>,
     settings: State<'_, Arc<SettingsStore>>,
     state: State<'_, AppState>,
+    copilot: State<'_, Arc<CopilotEngine>>,
 ) -> Result<VoiceprintStatus, String> {
     if settings.is_ui_test() {
         return Err("speaker_ui_test_unavailable".into());
@@ -78,7 +83,9 @@ pub async fn speaker_voiceprint_record_stop(
         service.record_cancel().await?;
         return Err("session_active".into());
     }
-    service.record_stop().await
+    let status = service.record_stop().await?;
+    copilot.refresh_availability();
+    Ok(status)
 }
 
 #[tauri::command]

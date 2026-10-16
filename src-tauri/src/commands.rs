@@ -2051,6 +2051,7 @@ fn apply_settings_draft_guarded(
         crate::refresh_native_tray_language(app);
     }
 
+    refresh_copilot_availability(&app);
     let payload = SettingsSnapshotPayload::try_from_store(&state.settings)?;
     let _ = app.emit("settings-changed", payload.clone());
     Ok(payload)
@@ -2154,10 +2155,18 @@ fn ensure_profile_mutation_allowed(is_active: bool) -> Result<(), String> {
     }
 }
 
+fn refresh_copilot_availability(app: &AppHandle) {
+    if let Some(copilot) = app.try_state::<std::sync::Arc<crate::copilot::engine::CopilotEngine>>()
+    {
+        copilot.refresh_availability();
+    }
+}
+
 fn emit_settings_snapshot(
     app: &AppHandle,
     settings: &SettingsStore,
 ) -> Result<SettingsSnapshotPayload, String> {
+    refresh_copilot_availability(app);
     sync_overlay_minimum(app);
     let payload = SettingsSnapshotPayload::try_from_store(settings)?;
     let _ = app.emit("settings-changed", payload.clone());

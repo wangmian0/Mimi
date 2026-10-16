@@ -854,7 +854,7 @@ impl CopilotEngine {
         self.schedule_emit();
     }
 
-    fn refresh_availability(&self) {
+    pub fn refresh_availability(&self) {
         let config = self.store.snapshot();
         let reason = if !config.enabled {
             Some(CopilotUnavailableReason::Disabled)
