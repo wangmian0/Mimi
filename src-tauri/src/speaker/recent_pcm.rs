@@ -55,7 +55,14 @@ impl RecentPcm {
             return;
         }
         if start_sample != self.end_sample {
-            self.clear();
+            // A chunk skipped by the non-blocking tap leaves a short hole; pad it
+            // with silence so later recogniser ranges stay sample-aligned.
+            let gap = start_sample.saturating_sub(self.end_sample);
+            if start_sample > self.end_sample && gap <= self.rate as u64 && !self.pcm.is_empty() {
+                self.pcm.extend(std::iter::repeat_n(0i16, gap as usize));
+            } else {
+                self.clear();
+            }
         }
         self.end_sample = start_sample.saturating_add((bytes.len() / 2) as u64);
         self.marks.push_back((self.end_sample, at));
@@ -172,6 +179,25 @@ impl RecentPcm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn skipped_chunk_is_padded_instead_of_clearing_history() {
+        let mut pcm = RecentPcm::new();
+        pcm.begin(1, 16_000);
+        pcm.push(1, 0, &[1u8; 3_200], true, Instant::now());
+        pcm.push(1, 3_200, &[1u8; 3_200], true, Instant::now());
+        assert_eq!(pcm.bounds(), (0, 4_800));
+        let padded = pcm
+            .exact(
+                1,
+                SourceAudioRange {
+                    start_ms: 100.0,
+                    end_ms: 200.0,
+                },
+            )
+            .unwrap();
+        assert!(padded.iter().all(|sample| *sample == 0));
+    }
+
     #[test]
     fn bounded_generation_and_off() {
         let mut pcm = RecentPcm::new();

@@ -11,6 +11,8 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+const QUIET_OTHER_RMS: f32 = 0.01; // -40 dBFS
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SpeakerLabel {
@@ -272,6 +274,7 @@ impl SpeakerService {
             drop(pcm);
             if voiced_ms < 1_000 {
                 return SpeakerVerdict {
+                    label: quiet_speech_label(peak_rms),
                     voiced_ms,
                     basis,
                     ..unknown()
@@ -790,9 +793,26 @@ fn enroll(model: &embedding::SpeakerEmbedding, wav: Vec<i16>) -> Result<SavedVoi
     })
 }
 
+/// Mic-only calls: the owner talks close to the Mac, so recognised speech that
+/// never rises above the voice gate came through the phone speaker. Short but
+/// loud fragments (the owner's "Okay") stay undecided.
+fn quiet_speech_label(peak_rms: f32) -> SpeakerLabel {
+    if peak_rms < QUIET_OTHER_RMS {
+        SpeakerLabel::Other
+    } else {
+        SpeakerLabel::Unknown
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn quiet_recognised_speech_is_the_other_party() {
+        assert_eq!(quiet_speech_label(0.003), SpeakerLabel::Other);
+        assert_eq!(quiet_speech_label(0.04), SpeakerLabel::Unknown);
+    }
 
     #[tokio::test]
     async fn closing_waits_until_in_flight_pcm_is_released() {
