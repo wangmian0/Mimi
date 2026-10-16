@@ -115,3 +115,27 @@ commands.allow = [
   "overlay_control_set_panel_height",
   "overlay_control_set_island_width",
 ]
+
+[[permission]]
+identifier = "app-copilot-settings"
+description = "Allows the settings window to manage AI copilot configuration and voiceprint."
+commands.allow = [
+  "copilot_config_get",
+  "copilot_config_set_enabled",
+  "copilot_model_options",
+  "copilot_select_model",
+  "copilot_scenario_create",
+  "copilot_scenario_update",
+  "copilot_scenario_delete",
+  "copilot_scenario_select",
+  "speaker_voiceprint_status",
+  "speaker_voiceprint_import",
+  "speaker_voiceprint_record_start",
+  "speaker_voiceprint_record_stop",
+  "speaker_voiceprint_record_cancel",
+]
+
+[[permission]]
+identifier = "app-copilot-overlay"
+description = "Allows the overlay and its controls to read and toggle AI copilot runtime state."
+commands.allow = ["copilot_get_state", "copilot_set_active"]

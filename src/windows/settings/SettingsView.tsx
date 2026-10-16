@@ -15,7 +15,6 @@ import { SubtitleColorControl } from "./SubtitleColorControl";
 import { ServiceProfiles } from "./ServiceProfiles";
 import { SupportDiagnostics } from "./SupportDiagnostics";
 import { SessionExport } from "./SessionExport";
-import { SoftwareUpdate } from "./SoftwareUpdate";
 import { useSettingsTheme } from "./useSettingsTheme";
 import { DockPreference } from "./DockPreference";
 import { AppearancePicker } from "./AppearancePicker";
@@ -516,7 +515,6 @@ export function SettingsView() {
 
                 <DockPreference />
 
-                <SoftwareUpdate active={activeCategory === "general"} />
               </SettingsSection>
               <SettingsSection id="advanced-settings" title={I18N.settings.advancedTitle}>
                 <SettingsRow label={I18N.settings.diagnosticsTitle} description={I18N.settings.diagnosticsPageDescription}>

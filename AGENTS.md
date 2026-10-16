@@ -4,6 +4,12 @@
 
 Mimi is a Tauri v2 desktop app (Rust backend + React/TypeScript frontend) that listens to system audio and/or an explicitly selected microphone on macOS, Windows, or Linux and shows live translated subtitles in a floating always-on-top overlay. It supports built-in service profiles and custom live speech recognition with independent text translation, plus optional, explicitly enabled session recording and export.
 
+## Fork exceptions
+
+- Keep at most 30 seconds of microphone PCM in memory only while AI copilot is active; never persist it or include it in diagnostics or exports.
+- Store voiceprint and speaker model files under `app_data_dir/speaker/` with 0700 directories and 0600 files.
+- Do not require Android parity or an upstream pull request for this fork's AI copilot.
+
 Preserve these product constraints:
 
 - Capture system audio by default. Microphone capture requires explicit selection and starting a session. Allow either or both sources, with independent capture, bounded queues, recognition sessions and subtitle state. Never mix sources, silently fall back, or request microphone permission for system-only sessions. Changing selected sources requires stopping and clears the audio-recording opt-in. Preserve source identity in subtitles and recordings.

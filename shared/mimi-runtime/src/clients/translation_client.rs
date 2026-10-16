@@ -38,7 +38,16 @@ pub enum TranslationClient {
     XaiRealtime(XAIRealtimeClient),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SourceAudioRange {
+    pub start_ms: f64,
+    pub end_ms: f64,
+}
+
 impl TranslationClient {
+    pub fn final_audio_range(&self, _source_utterance_id: u64) -> Option<SourceAudioRange> {
+        None
+    }
     /// Render the same preview policy selected by the actual runtime factory.
     pub fn uses_atomic_preview(&self) -> bool {
         matches!(self, Self::HighQuality(_))

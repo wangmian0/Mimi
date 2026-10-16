@@ -12,6 +12,7 @@ mod audio;
 mod audio3_benchmark;
 mod clients;
 mod commands;
+mod copilot;
 mod core;
 mod desktop_shortcuts;
 #[cfg(any(test, feature = "development-debugger"))]
@@ -37,6 +38,7 @@ mod session_export;
 mod session_history;
 mod session_manager;
 mod settings_store;
+mod speaker;
 mod windows;
 #[cfg(target_os = "windows")]
 mod windows_startup;
@@ -101,8 +103,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build());
+        .plugin(tauri_plugin_process::init());
     // X11 grabs cannot act as desktop shortcuts in a Wayland session.
     let builder = if desktop_shortcuts::uses_system_shortcuts() {
         builder
@@ -182,6 +183,21 @@ pub fn run() {
                     preferences.overlay_locked = false;
                 });
             }
+            let copilot_store = Arc::new(copilot::CopilotStore::load(
+                app.path().app_config_dir()?,
+                is_ui_test,
+            ));
+            let speaker = speaker::SpeakerService::new(app.path().app_data_dir().ok());
+            let copilot = copilot::CopilotEngine::new(
+                app_handle.clone(),
+                Arc::clone(&settings),
+                Arc::clone(&copilot_store),
+                Arc::clone(&speaker),
+            );
+            app.manage(copilot_store);
+            app.manage(copilot);
+            app.manage(speaker);
+            app.manage(Arc::clone(&settings));
             let session = SessionManager::new(app_handle.clone(), Arc::clone(&settings));
 
             let overlay = Arc::new(std::sync::Mutex::new(windows::OverlayState::load(
@@ -392,6 +408,21 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            copilot::state_commands::copilot_get_state,
+            copilot::state_commands::copilot_set_active,
+            copilot::config_commands::copilot_config_get,
+            copilot::config_commands::copilot_config_set_enabled,
+            copilot::config_commands::copilot_model_options,
+            copilot::config_commands::copilot_select_model,
+            copilot::config_commands::copilot_scenario_create,
+            copilot::config_commands::copilot_scenario_update,
+            copilot::config_commands::copilot_scenario_delete,
+            copilot::config_commands::copilot_scenario_select,
+            speaker::commands::speaker_voiceprint_status,
+            speaker::commands::speaker_voiceprint_import,
+            speaker::commands::speaker_voiceprint_record_start,
+            speaker::commands::speaker_voiceprint_record_stop,
+            speaker::commands::speaker_voiceprint_record_cancel,
             commands::settings_get,
             commands::get_apple_speech_support,
             commands::prepare_apple_speech_language,
