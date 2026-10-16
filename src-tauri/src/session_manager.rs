@@ -3542,6 +3542,17 @@ impl SessionManager {
                     .and_then(|client| client.final_audio_range(*id)),
                 _ => None,
             };
+            pipeline_log!(
+                "copilot confirmed has_utterance_id={} has_range={}",
+                matches!(
+                    &event,
+                    LiveTranslateServerEvent::SubtitleConfirmedPair {
+                        source_utterance_id: Some(_),
+                        ..
+                    }
+                ),
+                range.is_some()
+            );
             self.copilot.enqueue_confirmed(
                 ConfirmedLine {
                     source: pair.audio_source,

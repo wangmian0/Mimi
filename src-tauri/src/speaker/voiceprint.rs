@@ -218,27 +218,57 @@ impl SpeakerService {
         if !self.active.load(Ordering::SeqCst)
             || generation != self.generation.load(Ordering::SeqCst)
         {
+            tracing::info!(reason = "inactive_or_stale", "speaker_unknown");
             return unknown();
         }
         let epoch = self.epoch.load(Ordering::SeqCst);
         #[cfg(target_os = "macos")]
         {
             let Some(model) = self.model.lock().unwrap().clone() else {
+                tracing::info!(reason = "model_missing", "speaker_unknown");
                 return unknown();
             };
             let (pcm, rate, basis) = {
                 let Ok(recent) = self.pcm.lock() else {
                     return unknown();
                 };
+                let (ring_start, ring_end) = recent.bounds();
+                tracing::info!(
+                    range_start_ms = range.map(|r| r.start_ms as i64).unwrap_or(-1),
+                    range_end_ms = range.map(|r| r.end_ms as i64).unwrap_or(-1),
+                    ring_start,
+                    ring_end,
+                    rate = recent.rate(),
+                    "speaker_lookup"
+                );
                 if let Some(exact) = range.and_then(|range| recent.exact(generation, range)) {
                     (exact, recent.rate(), SpeakerBasis::AudioRange)
                 } else if let Some(fallback) = recent.recent_voice(generation, confirmed_at) {
                     (fallback, recent.rate(), SpeakerBasis::RecentVoice)
                 } else {
+                    tracing::info!(reason = "no_audio", "speaker_unknown");
                     return unknown();
                 }
             };
+            let peak_rms = pcm
+                .chunks((rate / 100).max(1) as usize)
+                .map(|chunk| {
+                    (chunk
+                        .iter()
+                        .map(|s| (*s as f32 / 32768.0).powi(2))
+                        .sum::<f32>()
+                        / chunk.len().max(1) as f32)
+                        .sqrt()
+                })
+                .fold(0.0f32, f32::max);
             let (voiced, voiced_ms) = embedding::voiced_pcm(&pcm, rate);
+            tracing::info!(
+                basis = ?basis,
+                samples = pcm.len(),
+                voiced_ms,
+                peak_rms_dbfs = (20.0 * peak_rms.max(1e-6).log10()) as i32,
+                "speaker_audio"
+            );
             drop(pcm);
             if voiced_ms < 1_000 {
                 return SpeakerVerdict {
@@ -277,7 +307,7 @@ impl SpeakerService {
             else {
                 return unknown();
             };
-            tracing::debug!(
+            tracing::info!(
                 windows = windows.len(),
                 me_votes = classifier.2[0],
                 other_votes = classifier.2[1],

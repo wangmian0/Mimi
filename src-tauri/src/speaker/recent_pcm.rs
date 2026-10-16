@@ -76,6 +76,13 @@ impl RecentPcm {
         }
     }
 
+    pub fn bounds(&self) -> (u64, u64) {
+        (
+            self.end_sample.saturating_sub(self.pcm.len() as u64),
+            self.end_sample,
+        )
+    }
+
     pub fn exact(&self, generation: u64, range: SourceAudioRange) -> Option<Vec<i16>> {
         if generation != self.generation
             || !range.start_ms.is_finite()
