@@ -6,6 +6,8 @@ import { useStore } from "../../lib/store";
 import { shareUnchangedSubtitleHistory } from "../../lib/sessionSnapshot";
 import type { SessionStateEvent } from "../../lib/types";
 import { OverlayWindow } from "./OverlayWindow";
+import { receiveCopilotState } from "./useCopilotState";
+import type { CopilotOverlayState } from "../../lib/copilot";
 
 const timelineRender = vi.hoisted(() => vi.fn());
 vi.mock("./Timeline", async () => {
@@ -99,4 +101,26 @@ it("stabilizes both input drafts without rebuilding their shared history on ever
   await act(async () => vi.advanceTimersByTime(400));
   expect(timelineRender).toHaveBeenCalledTimes(2);
   expect(host.textContent).toContain("Synthetic updated draft 50");
+});
+
+it("does not redraw Timeline for streamed suggestion tokens with unchanged speaker labels", async () => {
+  await act(async () => root.render(<OverlayWindow />));
+  const initial: CopilotOverlayState = {
+    revision: 1, available: true, unavailableReason: null, active: true, phase: "streaming",
+    speakers: [{ audioSource: "system", createdAt: 1, speaker: "other" }],
+    suggestion: { id: 1, english: "Please", chinese: null, isFinal: false }, errorLabel: null,
+  };
+  await act(async () => receiveCopilotState(initial));
+  const renders = timelineRender.mock.calls.length;
+  expect(host.querySelector('[data-testid="copilot-pane"]')).not.toBeNull();
+  for (let revision = 2; revision <= 30; revision++) {
+    await act(async () => receiveCopilotState({ ...initial, revision,
+      speakers: [...initial.speakers], suggestion: { ...initial.suggestion!, english: `Please ${revision}` } }));
+  }
+  expect(timelineRender).toHaveBeenCalledTimes(renders);
+  expect(host.textContent).toContain("Please 30");
+  await act(async () => receiveCopilotState({ ...initial, revision: 31, active: false,
+    suggestion: { ...initial.suggestion!, english: "Stale secret suggestion" } }));
+  expect(host.querySelector('[data-testid="copilot-pane"]')).toBeNull();
+  expect(host.textContent).not.toContain("Stale secret suggestion");
 });

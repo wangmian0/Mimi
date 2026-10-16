@@ -27,6 +27,7 @@ import {
 import { LanguageStatusCapsule } from "./LanguageStatusCapsule";
 import { OverlayControlPanel } from "./OverlayControlPanel";
 import { overlayControlPanelModel } from "./overlayControlModel";
+import { useCopilotState, setCopilotActive } from "../overlay/useCopilotState";
 import "./overlay-control.css";
 
 /** Child window that morphs between a compact status island and its panel. */
@@ -59,6 +60,7 @@ export function OverlayControlWindow({ embedded = false }: { embedded?: boolean 
   const setOverlayLocked = useStore((state) => state.setOverlayLocked);
   const showSettings = useStore((state) => state.showSettings);
   const [mode, setMode] = useOverlayControlMode(initialPreviewMode);
+  const copilot = useCopilotState();
   const translationTarget = useRef({ profileId: settings.activeProfileId, language: settings.targetLanguage });
   useEffect(() => {
     if (translationTarget.current.profileId !== settings.activeProfileId || settings.targetLanguage !== "original") {
@@ -202,6 +204,8 @@ export function OverlayControlWindow({ embedded = false }: { embedded?: boolean 
             saveSettings({ subtitleBlendsWithBackground })
           }
           onSetOverlayLocked={setOverlayLocked}
+          copilot={copilot}
+          onSetCopilotActive={setCopilotActive}
           onShowSettings={showSettings}
         />
       )}

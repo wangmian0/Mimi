@@ -12,17 +12,18 @@ const CONTROL_ISLAND_RIGHT = 18 + 280;
 const ACTION_ROW_RIGHT_MARGIN = 10;
 const ACTION_BUTTON_WIDTH = 24;
 const ACTION_BUTTON_GAP = 4;
-const MAXIMUM_ACTION_COUNT = 7;
+const DEFAULT_ACTION_COUNT = 7;
 const CHROME_GAP = 6;
 
 /** Error states retain their native language capsule and recovery actions. */
 export function overlaySessionChromeLayout(
   width: number,
   session: Pick<SessionStateEvent, "isActive" | "status">,
+  actionCount = DEFAULT_ACTION_COUNT,
 ) {
   const showControls = session.isActive || session.status.kind === "error";
   return {
-    ...overlayTopChromeLayout(width, showControls),
+    ...overlayTopChromeLayout(width, showControls, actionCount),
     showControls,
     // Prioritize close at the native minimum width; pause/retry joins it
     // when both buttons fit beside the capsule.
@@ -31,10 +32,6 @@ export function overlaySessionChromeLayout(
     topBandHeight: showControls ? 61 : 37,
   };
 }
-
-const MAXIMUM_ACTION_ROW_WIDTH =
-  MAXIMUM_ACTION_COUNT * ACTION_BUTTON_WIDTH +
-  (MAXIMUM_ACTION_COUNT - 1) * ACTION_BUTTON_GAP;
 
 /**
  * Places the overlay's three independent top surfaces. When the full chrome
@@ -46,6 +43,7 @@ const MAXIMUM_ACTION_ROW_WIDTH =
 export function overlayTopChromeLayout(
   overlayWidth: number,
   isActive: boolean,
+  actionCount = DEFAULT_ACTION_COUNT,
 ): OverlayTopChromeLayout {
   const width = Math.max(0, overlayWidth);
   if (!isActive) {
@@ -60,8 +58,8 @@ export function overlayTopChromeLayout(
     };
   }
 
-  const actionRowLeft =
-    width - ACTION_ROW_RIGHT_MARGIN - MAXIMUM_ACTION_ROW_WIDTH;
+  const actionRowWidth = actionCount * ACTION_BUTTON_WIDTH + (actionCount - 1) * ACTION_BUTTON_GAP;
+  const actionRowLeft = width - ACTION_ROW_RIGHT_MARGIN - actionRowWidth;
   const spaceWithActions =
     actionRowLeft - CONTROL_ISLAND_RIGHT - CHROME_GAP * 2;
   const showActions = spaceWithActions >= DRAG_HANDLE_MIN_WIDTH;

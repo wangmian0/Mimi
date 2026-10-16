@@ -16,6 +16,7 @@ use crate::audio::{
 };
 use crate::clients::provider_events::{provider_event_channel, ProviderEvent};
 use crate::clients::translation_client::TranslationClient;
+use crate::copilot::engine::{ConfirmedLine, CopilotEngine};
 use crate::core::audio_input::{AudioInput, AudioSource};
 use crate::core::configuration::LiveTranslationConfiguration;
 #[cfg(test)]
@@ -39,6 +40,7 @@ use crate::core::system_audio_target::SystemAudioTarget;
 use crate::pipeline_log;
 use crate::session_history::SessionHistory;
 use crate::settings_store::SettingsStore;
+use crate::speaker::SpeakerService;
 use crate::windows::OverlayWindowManager;
 use serde::Serialize;
 use std::future::Future;
@@ -899,6 +901,8 @@ pub struct SessionManager {
     diagnostic_journal: Arc<Mutex<DiagnosticJournal>>,
     health_latency: Arc<Mutex<Option<HealthCheckLatency>>>,
     settings: Arc<SettingsStore>,
+    copilot: Arc<CopilotEngine>,
+    speaker: Arc<SpeakerService>,
     controller: Arc<Mutex<TranslationSessionController>>,
     /// Captured at manual start; pause, reconnect and recovery preserve it.
     active_audio_input: Arc<Mutex<AudioInput>>,
@@ -959,6 +963,8 @@ impl SessionManager {
     }
 
     pub fn new(app: AppHandle, settings: Arc<SettingsStore>) -> Arc<Self> {
+        let copilot = Arc::clone(&app.state::<Arc<CopilotEngine>>());
+        let speaker = Arc::clone(&app.state::<Arc<SpeakerService>>());
         let history_directory = app.path().app_data_dir().ok();
         let history = SessionHistory::new(
             history_directory
@@ -979,6 +985,8 @@ impl SessionManager {
             diagnostic_journal: Default::default(),
             health_latency: Default::default(),
             settings,
+            copilot,
+            speaker,
             controller: Arc::new(Mutex::new(TranslationSessionController::default())),
             active_audio_input: Default::default(),
             recording: Default::default(),
@@ -1578,6 +1586,9 @@ impl SessionManager {
         let _operation = self.begin_lifecycle_operation();
         let request_generation = self.next_lifecycle_request();
         let lifecycle = self.lock_after_teardown().await;
+        if self.speaker.is_recording() {
+            return Err("speaker_recording_active".into());
+        }
         if !self.is_lifecycle_request_current(request_generation)
             || !start_request_can_proceed(
                 self.has_active_session(),
@@ -1921,6 +1932,10 @@ impl SessionManager {
                 AudioCaptureFormat::pcm16_mono(configuration.capabilities().input_sample_rate_hz)
                     .map_err(|error| error.to_string())?;
             let send_manager = Arc::clone(&self);
+            if source == AudioSource::Microphone {
+                self.speaker
+                    .begin_capture(generation, audio_format.sample_rate_hz);
+            }
             let on_error_self = Arc::clone(&self);
             let pipeline = Arc::new(AudioSendPipeline::spawn(
                 move |data| {
@@ -1932,6 +1947,9 @@ impl SessionManager {
                             audio_format.sample_rate_hz,
                             &data,
                         );
+                        if source == AudioSource::Microphone {
+                            manager.speaker.observe_pcm(generation, &data);
+                        }
                         let client = manager.client_for_generation(source, generation);
                         match client {
                             Some(client) => crate::development_audio::scope(
@@ -2031,6 +2049,7 @@ impl SessionManager {
             lane.mt_budget_continuity.lock().unwrap().reset();
         }
         let stopping_generation = self.active_generation.swap(NO_GENERATION, Ordering::SeqCst);
+        self.copilot.deactivate().await;
         if stopping_generation != NO_GENERATION {
             self.stopping_tail_generation
                 .store(stopping_generation, Ordering::SeqCst);
@@ -3219,6 +3238,7 @@ impl SessionManager {
         }
         self.cancel_translation_timeout();
         self.controller.lock().unwrap().clear_subtitles();
+        self.copilot.reset_conversation();
         self.publish_state();
         Ok(())
     }
@@ -3472,6 +3492,14 @@ impl SessionManager {
         if let Some(deadline) = translation_deadline {
             self.arm_translation_timeout(source, generation, deadline);
         }
+        let copilot_pair = if self.copilot.is_active() && self.is_generation_current(generation) {
+            newly_confirmed
+                .as_ref()
+                .filter(|pair| pair.audio_source == AudioSource::Microphone)
+                .cloned()
+        } else {
+            None
+        };
         if let Some(pair) = newly_confirmed {
             let pending = self.history_pending_id.lock().unwrap();
             if let Some(id) = pending.as_deref() {
@@ -3502,7 +3530,32 @@ impl SessionManager {
         self.publish_state();
         drop(content);
 
+        if let Some(pair) = copilot_pair
+            .filter(|_| self.copilot.is_active() && self.is_generation_current(generation))
+        {
+            let range = match &event {
+                LiveTranslateServerEvent::SubtitleConfirmedPair {
+                    source_utterance_id: Some(id),
+                    ..
+                } => self
+                    .client_for_generation(source, generation)
+                    .and_then(|client| client.final_audio_range(*id)),
+                _ => None,
+            };
+            self.copilot.enqueue_confirmed(
+                ConfirmedLine {
+                    source: pair.audio_source,
+                    created_at_ms: pair.created_at_ms,
+                    text: pair.source,
+                    confirmed_at: Instant::now(),
+                },
+                generation,
+                range,
+            );
+        }
+
         if is_terminal {
+            self.copilot.deactivate().await;
             // Provider error codes are not universally trustworthy (some
             // protocols carry arbitrary server strings). Keep diagnostics on
             // a fixed local label just like free-text messages.
@@ -3619,6 +3672,7 @@ impl SessionManager {
                 .lock()
                 .unwrap()
                 .did_fail(failure.to_string());
+            self.copilot.deactivate().await;
             self.publish_state();
             return;
         }
@@ -4056,7 +4110,7 @@ impl SessionManager {
         lifecycle_sequence_matches(&self.lifecycle_sequence, generation)
     }
 
-    fn is_generation_current(&self, generation: u64) -> bool {
+    pub(crate) fn is_generation_current(&self, generation: u64) -> bool {
         generation != NO_GENERATION && self.active_generation.load(Ordering::SeqCst) == generation
     }
 

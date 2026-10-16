@@ -26,6 +26,10 @@ import type { SourceSubtitleSnapshot } from "../../lib/types";
 import { overlaySessionChromeLayout } from "./overlayChromeLayout";
 import { minimumOverlayHeight } from "./overlayMinimumHeight";
 import { useSessionAction } from "./useSessionAction";
+import { useCopilotState, setCopilotActive } from "./useCopilotState";
+import { CopilotPane } from "./CopilotPane";
+import { copilotCopy, copilotUnavailableLabel } from "./copilotCopy";
+import { withSpeakerLabels } from "./copilotModel";
 import { publishOverlayPointerMotion } from "../../lib/overlayPointer";
 import {
   buildSubtitleBlocks,
@@ -46,7 +50,7 @@ const EMPTY_MICROPHONE: SourceSubtitleSnapshot = {
   history: [], detectedLanguage: null, isTranslationPending: false, isTranslationTimedOut: false,
 };
 const EMPTY_SYSTEM: SourceSubtitleSnapshot = { ...EMPTY_MICROPHONE, audioSource: "system" };
-type ControlAction = "collapse" | "clear" | "immersive" | "lock" | "settings" | "close";
+type ControlAction = "collapse" | "clear" | "immersive" | "lock" | "settings" | "close" | "copilot";
 
 /** Floating subtitle overlay driven by native session and geometry state. */
 export function OverlayWindow() {
@@ -55,6 +59,7 @@ export function OverlayWindow() {
   const sessionErrorMessage = useStore(selectSessionErrorMessage);
   const sessionErrorSummary = useStore(selectSessionErrorSummary);
   const [controlMode] = useOverlayControlMode();
+  const copilot = useCopilotState();
   const hasSessionError = session.status.kind === "error";
   const permissionRequired = useStore(state => state.session.status.kind === "error" && isSystemAudioPermissionDenied(state.session.status.message));
   const errorSettingsTarget = session.status.kind === "error" ? sessionErrorSettingsTarget(session.status.message) : null;
@@ -128,9 +133,11 @@ export function OverlayWindow() {
     height:
       typeof window === "undefined" || !isTauri ? 482 : window.innerHeight,
   }));
+  const showCopilotToggle = copilot.available || copilot.unavailableReason !== null && copilot.unavailableReason !== "disabled";
   const topChromeLayout = overlaySessionChromeLayout(
     Math.max(0, overlaySize.width - OVERLAY_INSET * 2),
     session,
+    showCopilotToggle ? 8 : 7,
   );
   const showSessionControls = topChromeLayout.showControls;
   const service = translationService(settings);
@@ -151,6 +158,7 @@ export function OverlayWindow() {
     document.body.classList.toggle("pulse-off", !pulseOn);
   }, [motionOn, pulseOn]);
   const presentationCollapsed = collapsed && !blendsWithBackground && !hasSessionError;
+  const copilotActive = copilot.available && copilot.active && !hasSessionError && !presentationCollapsed;
   const phase = computeActivityPhase(session, settings);
   const activeProvider = settings.profiles.find(profile => profile.id === settings.activeProfileId)?.provider;
   const atomicProvider = session.atomicPreview ?? usesAtomicSubtitlePreview(activeProvider);
@@ -177,6 +185,8 @@ export function OverlayWindow() {
     : buildSubtitleBlocks(session.subtitles.history, settings.subtitleDisplayMode, primaryTail)
       .map(block => ({ ...block, audioSource: block.audioSource ?? primaryAudioSource })),
   [dual, session.subtitles.history, settings.subtitleDisplayMode, primarySubtitles.history, primaryTail, primaryAudioSource, microphoneSubtitles.history, microphoneTail]);
+  const displayBlocks = useMemo(() => copilotActive ? withSpeakerLabels(blocks, copilot.speakers) : blocks,
+    [blocks, copilotActive, copilot.speakers]);
   const hasContent = hasSubtitleContent(session.subtitles);
   const phaseLabel = session.status.kind === "stopping" ? I18N.overlay.stopping : OVERLAY_ACTIVITY_PHASES[phase].accessibilityLabel;
   const pauseLabel = session.isPaused
@@ -329,10 +339,12 @@ export function OverlayWindow() {
               height: "100%",
             }}
           >
+            <div className={copilotActive ? "copilot-reading-half" : undefined} style={copilotActive ? undefined : { display: "contents" }}>
             {blocks.length > 0 && (
               <Timeline
                 preserveLiveLineBreaks={streamingProvider}
-                blocks={blocks}
+                blocks={displayBlocks}
+                speakerLabels={copilotActive}
                 fontSize={settings.fontSize}
               fontFamily={settings.subtitleFontFamily}
                 color={settings.subtitleColor}
@@ -348,6 +360,8 @@ export function OverlayWindow() {
                 onReadingHistoryChange={setReadingHistory}
               />
             )}
+            </div>
+            {copilotActive && <CopilotPane height={overlaySize.height} immersive />}
           </div>
         </div>
       );
@@ -434,6 +448,15 @@ export function OverlayWindow() {
                 disabled={sessionActionBusy || controlAction.pending}
               />}
               {topChromeLayout.showActions && <>
+              {showCopilotToggle && <ControlButton
+                icon="sparkles"
+                label={copilot.active ? copilotCopy().disable : copilot.available ? copilotCopy().enable : copilotUnavailableLabel(copilot.unavailableReason)}
+                onClick={() => runControlAction("copilot", () => setCopilotActive(!copilot.active))}
+                busy={pendingControl === "copilot"}
+                disabled={!copilot.available || controlAction.pending}
+                pressed={copilot.active}
+                data-testid="toggle-copilot"
+              />}
               <ControlButton
                 icon="chevron-up"
                 label={I18N.overlay.collapseSubtitle}
@@ -504,6 +527,7 @@ export function OverlayWindow() {
             onRetry={errorRequiresConfiguration ? undefined : runSessionAction}
             disabled={sessionActionBusy || controlAction.pending}
           />}
+          <div className={copilotActive ? "copilot-reading-half" : undefined} style={copilotActive ? undefined : { display: "contents" }}>
           {blocks.length === 0 ? hasSessionError ? null : (
             <div
               className="flex flex-1 flex-col items-center justify-center"
@@ -543,7 +567,8 @@ export function OverlayWindow() {
           ) : (
             <Timeline
               preserveLiveLineBreaks={streamingProvider}
-              blocks={blocks}
+              blocks={displayBlocks}
+              speakerLabels={copilotActive}
               fontSize={settings.fontSize}
               fontFamily={settings.subtitleFontFamily}
               color={settings.subtitleColor}
@@ -558,6 +583,8 @@ export function OverlayWindow() {
               onReadingHistoryChange={setReadingHistory}
             />
           )}
+          </div>
+          {copilotActive && <CopilotPane height={overlaySize.height} />}
           </div>
         </div>
       </div>

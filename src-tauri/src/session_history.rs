@@ -579,7 +579,7 @@ fn verified_existing_wav(
     Ok(true)
 }
 
-fn wav_header(rate: u32, length: u32) -> [u8; 44] {
+pub(crate) fn wav_header(rate: u32, length: u32) -> [u8; 44] {
     let mut header = [0_u8; 44];
     header[0..4].copy_from_slice(b"RIFF");
     header[4..8].copy_from_slice(&(length + 36).to_le_bytes());

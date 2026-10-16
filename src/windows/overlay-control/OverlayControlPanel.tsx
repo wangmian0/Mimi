@@ -31,6 +31,8 @@ import {
 import { LanguageStatusCapsule } from "./LanguageStatusCapsule";
 import { CaptureStatusRow } from "./CaptureStatusRow";
 import type { OverlayControlPanelModel } from "./overlayControlModel";
+import { copilotCopy, copilotUnavailableLabel } from "../overlay/copilotCopy";
+import type { CopilotOverlayState } from "../../lib/copilot";
 
 type PendingAction =
   | "retry"
@@ -44,7 +46,8 @@ type PendingAction =
   | "timestamps"
   | "immersive"
   | "lock"
-  | "settings";
+  | "settings"
+  | "copilot";
 
 interface OverlayControlPanelProps {
   phase: OverlayActivityPhaseKind;
@@ -70,6 +73,8 @@ interface OverlayControlPanelProps {
   onSetSubtitleDisplayMode: (mode: SubtitleDisplayMode) => Promise<void>;
   onSetImmersiveMode: (enabled: boolean) => Promise<void>;
   onSetOverlayLocked: (locked: boolean) => Promise<void>;
+  copilot?: Pick<CopilotOverlayState, "available" | "active" | "unavailableReason">;
+  onSetCopilotActive?: (active: boolean) => Promise<void>;
   onShowSettings: (target?: SettingsNavigationTarget) => Promise<void>;
 }
 
@@ -97,6 +102,8 @@ export function OverlayControlPanel({
   onSetSubtitleDisplayMode,
   onSetImmersiveMode,
   onSetOverlayLocked,
+  copilot,
+  onSetCopilotActive,
   onShowSettings,
 }: OverlayControlPanelProps) {
   const { nativeShortcuts } = useDesktopShortcuts();
@@ -379,6 +386,20 @@ export function OverlayControlPanel({
             <span className="overlay-control-switch" aria-hidden="true"><span /></span>
           </button>
         </div>
+
+        {copilot && (copilot.available || copilot.unavailableReason !== null && copilot.unavailableReason !== "disabled") && <button
+          type="button"
+          role="switch"
+          aria-checked={copilot.active}
+          aria-label={copilotCopy().title}
+          className={`overlay-control-setting${copilot.active ? " is-on" : ""}`}
+          disabled={!copilot.available || pendingAction !== null || !onSetCopilotActive}
+          onClick={() => onSetCopilotActive && performAction("copilot", () => onSetCopilotActive(!copilot.active), false)}
+        >
+          <span className="overlay-control-setting__icon" aria-hidden="true"><Icon name="sparkles" /></span>
+          <span className="overlay-control-setting__copy"><strong>{copilot.available ? copilotCopy().title : copilotUnavailableLabel(copilot.unavailableReason)}</strong></span>
+          <span className="overlay-control-switch" aria-hidden="true"><span /></span>
+        </button>}
 
         <button
           ref={immersiveRef}

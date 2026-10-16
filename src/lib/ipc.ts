@@ -292,7 +292,7 @@ export function appQuit(): Promise<void> {
   return invoke("app_quit");
 }
 
-export type SettingsNavigationTarget = "service" | "voice" | "export" | "appleSpeechResources" | "activeProfile";
+export type SettingsNavigationTarget = "service" | "voice" | "copilot" | "export" | "appleSpeechResources" | "activeProfile";
 
 export function appShowSettings(
   target?: SettingsNavigationTarget,

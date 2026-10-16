@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mimi AI suggestions overlay fixture</title></head>
+<body><main id="root"></main><script type="module">
+// UI-only replay through the actual OverlayWindow and Timeline components.
+import React from "react";
+import { createRoot } from "react-dom/client";
+import "/src/index.css";
+const { OverlayWindow } = await import("/src/windows/overlay/OverlayWindow.tsx");
+const { receiveCopilotState } = await import("/src/windows/overlay/useCopilotState.ts");
+const { useStore } = await import("/src/lib/store.ts");
+const { setStoredUiLanguage } = await import("/src/lib/i18n.ts");
+const initial = useStore.getState();
+const root = createRoot(document.getElementById("root"));
+let revision = 0;
+window.renderCopilotFixture = (active = false, language = "en") => {
+  setStoredUiLanguage(language);
+  useStore.setState({ ...initial,
+    session: { ...initial.session, isActive: true, status: { kind: "listening" },
+      subtitles: { source: { text: "", isFinal: false }, translation: { text: "", isFinal: false },
+        history: [
+          { audioSource: "microphone", source: "I can confirm my account number.", translation: "我可以确认我的账户号码。", createdAt: 100 },
+          { audioSource: "microphone", source: "Could you verify the last payment?", translation: "您能核实上一笔付款吗？", createdAt: 200 },
+        ] } },
+    settings: { ...initial.settings, audioInput: "microphone", sourceLanguage: "en", targetLanguage: "zh",
+      subtitleDisplayMode: "bilingual", pulseAnimation: false, subtitleAnimation: false,
+      isOverlayLocked: false, subtitleBlendsWithBackground: false },
+  }, true);
+  root.render(React.createElement(OverlayWindow));
+  receiveCopilotState({ revision: ++revision, available: true, unavailableReason: null, active,
+    phase: active ? "ready" : "idle",
+    speakers: active ? [
+      { audioSource: "microphone", createdAt: 100, speaker: "me" },
+      { audioSource: "microphone", createdAt: 200, speaker: "other" },
+    ] : [],
+    suggestion: active ? { id: 1, english: "Could you please check the payment date?", chinese: "您能核对一下付款日期吗？", isFinal: true } : null,
+    errorLabel: null });
+};
+const params = new URLSearchParams(location.search);
+window.renderCopilotFixture(params.get("state") === "on", params.get("lang") || "en");
+window.copilotFixtureReady = true;
+</script></body></html>

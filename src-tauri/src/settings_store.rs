@@ -10,6 +10,7 @@ mod gemini_live_tests;
 #[cfg(all(test, feature = "development-debugger", target_os = "macos"))]
 mod qwen_comparison;
 
+use crate::copilot::config::{CopilotModelOption, CopilotModelRoute};
 use crate::core::audio_input::AudioInput;
 use crate::core::configuration::LiveTranslationConfiguration;
 use crate::core::credentials::{
@@ -62,6 +63,14 @@ const CREDENTIAL_STORE_ACCESS_DENIED: &str = "credential_store_access_denied";
 const PREFERENCES_UNAVAILABLE: &str = "Settings could not be saved.";
 const PROFILE_NOT_FOUND: &str = "The service profile does not exist.";
 const LAST_PROFILE: &str = "At least one service profile is required.";
+
+/// Internal only: endpoint and key must never enter a settings snapshot or Debug log.
+pub struct ChatCompletionsTarget {
+    pub endpoint: String,
+    pub model: String,
+    pub api_key: String,
+    pub network_proxy: ProxyConfig,
+}
 
 /// Editor-local configuration and field availability, never a settings snapshot.
 /// Endpoints can include private path segments, so do not log this payload.
@@ -2080,6 +2089,114 @@ impl SettingsStore {
             &Self::destination_account(profile),
         )
         .map_err(SecretStoreError::public_error)
+    }
+
+    /// Lists saved chat destinations, including routes other than a profile's
+    /// currently selected translation route. Never returns endpoint or key.
+    pub fn chat_completions_options(&self) -> Result<Vec<CopilotModelOption>, String> {
+        let (_, profiles) = self.profile_catalog()?;
+        let mut options = Vec::new();
+        for profile in profiles {
+            self.retry_profile_credential_errors(&profile, false, true);
+            let Some(value) = self.destination_value(&profile)? else {
+                continue;
+            };
+            let destination: TextTranslationDestination = serde_json::from_str(&value)
+                .map_err(|_| CREDENTIAL_STORE_UNAVAILABLE.to_string())?;
+            for (route, saved, text_route) in [
+                (
+                    CopilotModelRoute::OpenAICompatible,
+                    destination.open_ai_compatible.as_ref(),
+                    TextTranslation::OpenAICompatible,
+                ),
+                (
+                    CopilotModelRoute::ChatMock,
+                    destination.chat_mock.as_ref(),
+                    TextTranslation::ChatMock,
+                ),
+            ] {
+                let Some(saved) = saved else { continue };
+                if saved.endpoint.trim().is_empty() || saved.model.trim().is_empty() {
+                    continue;
+                }
+                if destination
+                    .credentials(text_route)
+                    .and_then(|c| c.validated().ok())
+                    .is_none()
+                {
+                    continue;
+                }
+                options.push(CopilotModelOption {
+                    profile_id: profile.id.clone(),
+                    profile_name: profile.name.clone(),
+                    route,
+                    route_name: profile.text_translation_names.get(&text_route).cloned(),
+                    model: saved.model.clone(),
+                    has_api_key: !saved.api_key.trim().is_empty(),
+                });
+            }
+        }
+        Ok(options)
+    }
+
+    /// Resolves one saved destination for the copilot engine, independently of
+    /// the profile's active translation route.
+    pub fn chat_completions_target(
+        &self,
+        profile_id: &str,
+        route: CopilotModelRoute,
+    ) -> Result<ChatCompletionsTarget, String> {
+        let profile = self.profile(profile_id)?;
+        self.retry_profile_credential_errors(&profile, false, true);
+        let value = self
+            .destination_value(&profile)?
+            .ok_or_else(|| "copilot_model_missing".to_string())?;
+        let destination: TextTranslationDestination =
+            serde_json::from_str(&value).map_err(|_| CREDENTIAL_STORE_UNAVAILABLE.to_string())?;
+        let text_route = match route {
+            CopilotModelRoute::OpenAICompatible => TextTranslation::OpenAICompatible,
+            CopilotModelRoute::ChatMock => TextTranslation::ChatMock,
+        };
+        let saved = match route {
+            CopilotModelRoute::OpenAICompatible => destination.open_ai_compatible,
+            CopilotModelRoute::ChatMock => destination.chat_mock,
+        }
+        .ok_or_else(|| "copilot_model_missing".to_string())?;
+        let validated = TextTranslationDestination {
+            open_ai_compatible: (route == CopilotModelRoute::OpenAICompatible)
+                .then(|| saved.clone()),
+            chat_mock: (route == CopilotModelRoute::ChatMock).then(|| saved.clone()),
+            ..Default::default()
+        }
+        .credentials(text_route)
+        .and_then(|c| c.validated().ok())
+        .ok_or_else(|| "copilot_model_invalid".to_string())?;
+        let (endpoint, model, api_key) = match validated {
+            TextTranslationCredentials::OpenAICompatible {
+                endpoint,
+                model,
+                api_key,
+            }
+            | TextTranslationCredentials::ChatMock {
+                endpoint,
+                model,
+                api_key,
+            } => (endpoint, model, api_key),
+            _ => return Err("copilot_model_invalid".into()),
+        };
+        let prefs = self.preferences();
+        let network_proxy = profile
+            .text_network_proxy
+            .as_ref()
+            .unwrap_or(&prefs.network_proxy)
+            .validate()
+            .map_err(|_| "copilot_proxy_invalid".to_string())?;
+        Ok(ChatCompletionsTarget {
+            endpoint,
+            model,
+            api_key,
+            network_proxy,
+        })
     }
 
     fn write_destination_value(
@@ -6218,6 +6335,53 @@ mod tests {
                 .custom_speech_source_languages,
             custom.custom_speech_source_languages
         );
+    }
+
+    #[test]
+    fn copilot_lists_saved_chat_destinations_even_when_profile_uses_another_route() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = SettingsStore::at_path(
+            directory.path().into(),
+            Box::new(FakeSecretStore::default()),
+        );
+        let profile = store.active_profile().unwrap();
+        assert_ne!(
+            profile.text_translation(),
+            TextTranslation::OpenAICompatible
+        );
+        let destination = TextTranslationDestination {
+            open_ai_compatible: Some(OpenAICompatibleDestination {
+                endpoint: "https://example.com/v1".into(),
+                model: "test-model".into(),
+                api_key: String::new(),
+            }),
+            chat_mock: Some(OpenAICompatibleDestination {
+                endpoint: "https://example.net/v1".into(),
+                model: "mock-model".into(),
+                api_key: "private-test-token".into(),
+            }),
+            ..Default::default()
+        };
+        store
+            .write_destination_value(
+                &profile,
+                Some(&serde_json::to_string(&destination).unwrap()),
+                true,
+            )
+            .unwrap();
+        let options = store.chat_completions_options().unwrap();
+        assert_eq!(options.len(), 2);
+        assert_eq!(options[0].model, "test-model");
+        assert!(!options[0].has_api_key);
+        assert!(options[1].has_api_key);
+        let public = serde_json::to_string(&options).unwrap();
+        assert!(!public.contains("example.com"));
+        assert!(!public.contains("private-test-token"));
+        let target = store
+            .chat_completions_target(&profile.id, CopilotModelRoute::OpenAICompatible)
+            .unwrap();
+        assert_eq!(target.model, "test-model");
+        assert!(target.api_key.is_empty());
     }
 
     #[test]

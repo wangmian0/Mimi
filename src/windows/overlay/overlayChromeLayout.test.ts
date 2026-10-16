@@ -60,6 +60,11 @@ describe("overlay top chrome layout", () => {
     expect(layout.dragHandleWidth).toBe(40);
   });
 
+  it("budgets the eighth suggestion button at the wider threshold", () => {
+    expect(overlayTopChromeLayout(552, true, 8).showActions).toBe(false);
+    expect(overlayTopChromeLayout(580, true, 8).showActions).toBe(true);
+  });
+
   it("preserves the centered 120px handle and all actions at 640px", () => {
     expect(overlayTopChromeLayout(640, true)).toEqual({
       dragHandleCenterX: 320,

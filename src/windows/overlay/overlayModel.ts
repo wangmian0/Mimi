@@ -41,6 +41,7 @@ export type SubtitleBlockPresentation = "history" | "latestCommitted" | "live";
 /** One spoken utterance: the unit the timeline groups, spaces and fades. */
 export interface SubtitleBlock {
   audioSource?: AudioSource;
+  speaker?: "me" | "other";
   id: string;
   /** Epoch ms of the committed utterance; `null` while it is still live. */
   createdAt: number | null;

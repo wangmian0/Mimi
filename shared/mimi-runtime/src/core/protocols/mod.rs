@@ -3,6 +3,7 @@
 pub mod audio3;
 pub mod azure_openai_realtime;
 pub mod baidu_translate;
+pub mod copilot_prompt;
 pub mod custom_speech;
 pub mod gemini_live;
 pub mod live_translate;

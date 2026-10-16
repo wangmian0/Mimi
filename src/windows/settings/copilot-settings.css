@@ -1,0 +1,44 @@
+.copilot-settings {
+  display: grid;
+  gap: 16px;
+}
+.copilot-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+.copilot-inline-actions .settings-select-wrap { min-width: min(260px, 100%); }
+.copilot-scenario-fields {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+.copilot-scenario-fields[hidden] { display: none; }
+.copilot-text-field { display: grid; gap: 8px; min-width: 0; }
+.copilot-text-field__label { display: flex; align-items: center; gap: 4px; color: var(--settings-text); font-weight: 600; }
+.copilot-text-field textarea {
+  display: block;
+  width: 100%;
+  min-height: 112px;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--settings-border);
+  border-radius: 10px;
+  background: var(--settings-control);
+  color: var(--settings-text);
+  font: inherit;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+.copilot-text-field textarea:focus-visible { outline: 2px solid var(--settings-selection-soft); outline-offset: 1px; }
+.copilot-text-field__feedback .settings-link { margin-inline-start: 8px; }
+.copilot-voiceprint-status { display: grid; gap: 4px; text-align: end; }
+.copilot-voiceprint-status span + span { color: var(--settings-text-muted); }
+.copilot-settings button:not(:disabled) { cursor: pointer; }
+@media (max-width: 700px) {
+  .copilot-inline-actions { justify-content: flex-start; }
+  .copilot-voiceprint-status { text-align: start; }
+}

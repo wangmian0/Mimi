@@ -8,6 +8,8 @@ import { observeTimelineResize } from "./timelineResize";
 import { TimelineScroll } from "./timelineScroll";
 import { Icon } from "../../components/Icon";
 import { compactRepetition } from "./compactRepetition";
+import { copilotCopy } from "./copilotCopy";
+import "./copilot-pane.css";
 import {
   subtitleLaneBudget,
   subtitleSourceScale,
@@ -56,6 +58,7 @@ interface TimelineProps {
   /** A new request explicitly returns a history reader to the live tail. */
   followTailRequest?: number;
   onReadingHistoryChange?: (reading: boolean) => void;
+  speakerLabels?: boolean;
 }
 
 /** Scrolling sentence blocks; auto-scrolls to the newest block. Memoized:
@@ -79,6 +82,7 @@ export const Timeline = memo(function Timeline({
   preserveLiveLineBreaks = false,
   followTailRequest = 0,
   onReadingHistoryChange,
+  speakerLabels = false,
 }: TimelineProps) {
   useSyncExternalStore(subscribeUiLanguage, effectiveUiLanguage, effectiveUiLanguage);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -248,11 +252,12 @@ export const Timeline = memo(function Timeline({
           ? block.createdAt : null;
         // Source icons follow the input selection; confirmation times follow
         // their own preference. Retained microphone rows keep their identity.
-        const showSource = block.audioSource != null && (microphoneEnabled || block.audioSource === "microphone");
+        const showSource = !speakerLabels && block.audioSource != null && (microphoneEnabled || block.audioSource === "microphone");
+        const showSpeaker = speakerLabels && block.speaker != null && block.presentation !== "live";
         const inlineSource = showSource && timestamp === null
           && (!microphoneEnabled || blockViewportHeight !== null && blockViewportHeight < 80);
         const tintReference = mixedSources && (microphoneEnabled || block.audioSource === "microphone");
-        const hasMetadata = (showSource && !inlineSource) || timestamp !== null;
+        const hasMetadata = showSpeaker || (showSource && !inlineSource) || timestamp !== null;
         const metadataColor = blendsWithBackground ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.6)";
         const sourceIndicator = showSource && <span className="subtitle-audio-source" role="img"
           aria-label={block.audioSource === "system" ? I18N.settings.audioInputSystem : I18N.settings.audioInputMicrophone}
@@ -311,6 +316,9 @@ export const Timeline = memo(function Timeline({
               color: metadataColor,
               textShadow: blendsWithBackground ? IMMERSIVE_TEXT_SHADOW : undefined,
             }}>
+              {showSpeaker && <span className="copilot-speaker" data-speaker={block.speaker}>
+                {block.speaker === "me" ? copilotCopy().me : copilotCopy().other}
+              </span>}
               {sourceIndicator}
               {timestamp !== null && <time className="subtitle-timestamp" dateTime={new Date(timestamp).toISOString()}
                 style={{ fontSize: blendsWithBackground ? 13 : 12, lineHeight: "18px", fontWeight: blendsWithBackground ? 500 : 400,

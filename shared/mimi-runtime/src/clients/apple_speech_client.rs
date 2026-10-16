@@ -4,16 +4,18 @@
 
 use super::provider_events::ProviderEventSender;
 use super::recognition_client::RecognitionClientError;
+use super::translation_client::SourceAudioRange;
 use crate::apple_speech::{self, AppleSpeechError, AppleSpeechEvent, AppleSpeechSession};
 use crate::core::models::SourceLanguage;
 use crate::core::protocols::live_translate::LiveTranslateServerEvent;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::task::JoinHandle;
 
 const MAX_TRACKED_RANGES: usize = 64;
+const MAX_FINAL_AUDIO_RANGES: usize = 32;
 const SETUP_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Default)]
@@ -22,6 +24,7 @@ struct SentenceRanges {
     ranges: BTreeMap<u64, (u64, bool)>,
     retired_before: Option<u64>,
     clear_before_ms: Option<f64>,
+    final_audio: VecDeque<(u64, SourceAudioRange)>,
 }
 
 impl SentenceRanges {
@@ -63,6 +66,18 @@ impl SentenceRanges {
             return Ok(None);
         }
         *finished = event.is_final;
+        if event.is_final {
+            self.final_audio.push_back((
+                *id,
+                SourceAudioRange {
+                    start_ms: event.start_ms,
+                    end_ms: event.end_ms,
+                },
+            ));
+            if self.final_audio.len() > MAX_FINAL_AUDIO_RANGES {
+                self.final_audio.pop_front();
+            }
+        }
         Ok(Some(*id))
     }
 
@@ -71,6 +86,7 @@ impl SentenceRanges {
         // before Clear whose first callback has not arrived yet.
         self.clear_before_ms = Some(sent_pcm_bytes as f64 / 32.0);
         self.ranges.clear();
+        self.final_audio.clear();
     }
 }
 
@@ -115,6 +131,18 @@ pub struct AppleSpeechClient {
 }
 
 impl AppleSpeechClient {
+    pub fn final_audio_range(&self, source_utterance_id: u64) -> Option<SourceAudioRange> {
+        self.inner
+            .events
+            .lock()
+            .unwrap()
+            .ranges
+            .final_audio
+            .iter()
+            .rev()
+            .find(|(id, _)| *id == source_utterance_id)
+            .map(|(_, range)| *range)
+    }
     pub fn new(source: SourceLanguage) -> Self {
         Self {
             inner: Arc::new(Inner {
@@ -287,6 +315,7 @@ impl AppleSpeechClient {
         else {
             self.inner.generation.fetch_add(1, Ordering::SeqCst);
             self.inner.connected.store(false, Ordering::SeqCst);
+            self.inner.events.lock().unwrap().ranges.final_audio.clear();
             return;
         };
         if let Some(session) = lifecycle.session.as_mut() {
@@ -310,6 +339,7 @@ impl AppleSpeechClient {
             }
         }
         self.inner.generation.fetch_add(1, Ordering::SeqCst);
+        self.inner.events.lock().unwrap().ranges.final_audio.clear();
     }
 
     pub async fn disconnect(&self) {
@@ -326,6 +356,7 @@ impl AppleSpeechClient {
         if let Some(mut session) = lifecycle.session.take() {
             session.cancel();
         }
+        self.inner.events.lock().unwrap().ranges.final_audio.clear();
     }
 
     pub fn clear_content(&self) -> u64 {
@@ -434,6 +465,13 @@ mod tests {
         assert_eq!(ranges.admit(&result(0.0, "Duplicate", true)), Ok(None));
         assert_eq!(ranges.admit(&result(0.0, "Late draft", false)), Ok(None));
         assert_eq!(ranges.admit(&result(1000.0, "Next", true)), Ok(Some(2)));
+        assert_eq!(
+            ranges.final_audio.back().unwrap().1,
+            SourceAudioRange {
+                start_ms: 1000.0,
+                end_ms: 1500.0
+            }
+        );
     }
 
     #[test]
@@ -441,6 +479,7 @@ mod tests {
         let mut ranges = SentenceRanges::default();
         assert_eq!(ranges.admit(&result(0.0, "Old draft", false)), Ok(Some(1)));
         ranges.clear(32_000);
+        assert!(ranges.final_audio.is_empty());
         assert_eq!(ranges.admit(&result(0.0, "Old final", true)), Ok(None));
         assert_eq!(
             ranges.admit(&result(500.0, "Unseen old audio", true)),
@@ -461,7 +500,9 @@ mod tests {
                 Ok(Some(index + 1))
             );
             assert!(ranges.ranges.len() <= MAX_TRACKED_RANGES);
+            assert!(ranges.final_audio.len() <= MAX_FINAL_AUDIO_RANGES);
         }
+        assert_eq!(ranges.final_audio.front().unwrap().0, 169);
         assert_eq!(ranges.admit(&result(0.0, "Late old final", true)), Ok(None));
         let mut invalid = result(0.0, "Bad time", true);
         invalid.start_ms = f64::NAN;

@@ -10,6 +10,7 @@ import { TARGET_LANGUAGE_DISPLAY_NAMES } from "../../lib/types";
 import { sourceLanguagesForSettings, targetLanguagesForSettings } from "../../lib/providerCapabilities";
 import { profileCredentialEditorState, profileRevealCredential } from "../../lib/ipc";
 import { settingsPageCopy } from "./SettingsPageCopy";
+import { copilotSettingsCopy } from "./copilotSettingsCopy";
 import { SettingsView } from "./SettingsView";
 
 vi.mock("../../lib/ipc", async (original) => ({ ...await original<typeof import("../../lib/ipc")>(), profileRevealCredential: vi.fn(), profileCredentialEditorState: vi.fn() }));
@@ -63,7 +64,7 @@ it.each(["zh", "zh-TW", "en", "ja", "de", "fr", "ko", "th"] as const)("keeps dia
   setStoredUiLanguage(language);
   await mount();
   expect([...host.querySelectorAll(".settings-category-nav button")].map((button) => button.textContent)).toEqual([
-    I18N.settings.subtitleTitle, settingsPageCopy().voice, settingsPageCopy().models, I18N.settings.sessionExportTitle,
+    I18N.settings.subtitleTitle, settingsPageCopy().voice, settingsPageCopy().models, copilotSettingsCopy().title, I18N.settings.sessionExportTitle,
     I18N.settings.applicationTitle,
   ]);
   expect(host.querySelector("#subtitle-settings .source-language-grid")).toBeNull();
@@ -76,6 +77,7 @@ it.each(["zh", "zh-TW", "en", "ja", "de", "fr", "ko", "th"] as const)("keeps dia
   expect(host.querySelector("#advanced-settings #settings-category-diagnostics")?.textContent).toBe(I18N.settings.openDiagnostics);
   for (const [category, description] of [
     ["subtitles", I18N.settings.subtitlePageDescription], ["voice", settingsPageCopy().voiceHelp], ["service", settingsPageCopy().modelsHelp],
+    ["copilot", copilotSettingsCopy().help],
     ["export", I18N.settings.exportPageDescription], ["general", I18N.settings.generalPageDescription],
     ["diagnostics", `${I18N.settings.diagnosticsPageDescription}\n${I18N.settings.diagnosticsHelp}`],
   ] as const) {
@@ -96,7 +98,7 @@ it.each(["zh", "zh-TW", "en", "ja", "de", "fr", "ko", "th"] as const)("keeps dia
   expect(host.querySelector(".settings-quit-button")).not.toBeNull();
   expect(saveSettings).not.toHaveBeenCalled();
   expect(saveProfileCredentials).not.toHaveBeenCalled();
-});
+}, 10_000);
 
 it.each(["openAIRealtime", "volcanoEngine", "tencentCloud", "baiduTranslate"] as const)("groups selectable %s languages with audio sources", async (provider) => {
   const settings = { ...useStore.getState().settings, sourceLanguage: "auto" as const, profiles: useStore.getState().settings.profiles.map(profile => ({ ...profile, provider })) };

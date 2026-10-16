@@ -1,0 +1,9 @@
+.copilot-reading-half { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.copilot-pane { flex: 1 1 0; min-height: 0; overflow: auto; border-top: 1px solid rgba(255,255,255,.22); padding: 7px 12px; color: white; }
+.copilot-pane__english { font-size: 17px; line-height: 1.3; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+.copilot-pane__chinese { font-size: 13px; line-height: 1.3; color: rgba(255,255,255,.76); margin: 4px 0 0; overflow-wrap: anywhere; }
+.copilot-pane__status { font-size: 12px; line-height: 1.3; color: rgba(255,255,255,.7); margin: 0; }
+.copilot-pane--tight { padding: 4px 10px; }
+.copilot-pane--tight .copilot-pane__english { font-size: 15px; }
+.copilot-pane--immersive { background: transparent; text-shadow: 0 2px 5px rgba(0,0,0,.98), 0 0 12px rgba(0,0,0,.72); }
+.copilot-speaker { display: inline-flex; align-items: center; border: 1px solid rgba(255,255,255,.24); border-radius: 5px; padding: 0 5px; font: 600 11px/17px var(--mimi-ui-font); color: rgba(255,255,255,.78); white-space: nowrap; }

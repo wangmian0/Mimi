@@ -6,6 +6,7 @@ pub mod apple_translation_client;
 pub mod audio3_client;
 pub mod azure_openai_realtime_client;
 pub mod baidu_translate_client;
+pub mod copilot_client;
 pub mod custom_speech_client;
 pub mod gemini_live_client;
 pub mod high_quality_client;

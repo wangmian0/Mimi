@@ -5,6 +5,7 @@ use super::audio3_client::{Audio3ASRClient, Audio3ASRClientError};
 use super::custom_speech_client::{CustomSpeechClient, CustomSpeechClientError};
 use super::provider_events::ProviderEventSender;
 use super::provider_network::{ProviderNetwork, ProviderNetworkError};
+use super::translation_client::SourceAudioRange;
 use crate::core::models::SourceLanguage;
 use crate::core::pending_pcm::PendingPcmGate;
 use crate::core::provider::ProviderKind;
@@ -87,6 +88,12 @@ pub enum RecognitionClient {
 }
 
 impl RecognitionClient {
+    pub fn final_audio_range(&self, source_utterance_id: u64) -> Option<SourceAudioRange> {
+        match self {
+            Self::Apple(client) => client.final_audio_range(source_utterance_id),
+            _ => None,
+        }
+    }
     pub(crate) fn network_endpoint(&self) -> Option<url::Url> {
         match self {
             Self::Apple(_) => None,

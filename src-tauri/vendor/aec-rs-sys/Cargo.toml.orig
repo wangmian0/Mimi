@@ -1,0 +1,13 @@
+[package]
+name = "aec-rs-sys"
+version = "1.0.0"
+edition = "2021"
+authors = ["thewh1teagle"]
+license = "MIT"
+repository = "https://github.com/thewh1teagle/aec-rs"
+description = "Acoustic echo cancellation in Rust"
+homepage = "https://github.com/thewh1teagle/aec-rs"
+
+[build-dependencies]
+bindgen = "0.69.4"
+cmake = "0.1"

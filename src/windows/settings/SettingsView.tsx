@@ -29,6 +29,8 @@ import { SettingsHelp } from "./SettingsHelp";
 import { SettingsConfirmation } from "./DestructiveConfirmation";
 import { SettingsInitializationStatus } from "./SettingsInitializationStatus";
 import { VoiceSettings } from "./VoiceSettings";
+import { CopilotSettings } from "./CopilotSettings";
+import { copilotSettingsCopy } from "./copilotSettingsCopy";
 import { settingsPageCopy } from "./SettingsPageCopy";
 import { SettingsToastRegion } from "./SettingsToast";
 import { useSettingsToast } from "./useSettingsToast";
@@ -38,12 +40,13 @@ const DevelopmentDebugger = __MIMI_DEVELOPMENT_BUILD__
   ? lazy(() => import("./DevelopmentDebugger").then(module => ({ default: module.DevelopmentDebugger })))
   : null;
 
-type SettingsCategory = "subtitles" | "voice" | "service" | "general" | "export" | "diagnostics" | "guide";
+type SettingsCategory = "subtitles" | "voice" | "service" | "copilot" | "general" | "export" | "diagnostics" | "guide";
 
 const CATEGORY_SECTION_IDS: Record<SettingsCategory, string> = {
   subtitles: "subtitle-settings",
   service: "service-profiles",
   voice: "voice-settings",
+  copilot: "copilot-settings",
   general: "application-settings",
   export: "session-export",
   diagnostics: "diagnostics",
@@ -86,6 +89,7 @@ export function SettingsView() {
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>(
     locationCategory ?? preferredCategory,
   );
+  const [copilotVisited, setCopilotVisited] = useState(locationCategory === "copilot");
   const [initialCategoryResolved, setInitialCategoryResolved] = useState(initializationReady);
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const [appleResourcesRequest, setAppleResourcesRequest] = useState(0);
@@ -104,7 +108,7 @@ export function SettingsView() {
   const categories: readonly {
     id: SettingsCategory;
     label: string;
-    icon: "captions-bubble" | "languages" | "layers" | "gear" | "download";
+    icon: "captions-bubble" | "languages" | "layers" | "sparkles" | "gear" | "download";
   }[] = [
     {
       id: "subtitles",
@@ -113,6 +117,7 @@ export function SettingsView() {
     },
     { id: "voice", label: settingsPageCopy().voice, icon: "languages" },
     { id: "service", label: settingsPageCopy().models, icon: "layers" },
+    { id: "copilot", label: copilotSettingsCopy().title, icon: "sparkles" },
     { id: "export", label: I18N.settings.sessionExportTitle, icon: "download" },
     {
       id: "general",
@@ -125,6 +130,7 @@ export function SettingsView() {
     subtitles: I18N.settings.subtitlePageDescription,
     service: settingsPageCopy().modelsHelp,
     voice: settingsPageCopy().voiceHelp,
+    copilot: copilotSettingsCopy().help,
     general: I18N.settings.generalPageDescription,
     export: I18N.settings.exportPageDescription,
     diagnostics: `${I18N.settings.diagnosticsPageDescription}\n${I18N.settings.diagnosticsHelp}`,
@@ -132,6 +138,7 @@ export function SettingsView() {
   };
 
   const selectCategory = useCallback((category: SettingsCategory) => {
+    if (category === "copilot") setCopilotVisited(true);
     setAppleResourcesRequest(0);
     setProfileEditorRequest(0);
     setActiveCategory(category);
@@ -150,7 +157,7 @@ export function SettingsView() {
   }, [activeCategory]);
 
   const navigateToSettings = useCallback((target: SettingsNavigationTarget = "service") => {
-    const category = target === "export" ? "export" : target === "voice" ? "voice" : "service";
+    const category = target === "export" ? "export" : target === "voice" ? "voice" : target === "copilot" ? "copilot" : "service";
     selectCategory(category);
     if (target === "activeProfile") {
       profileEditorSequence.current += 1;
@@ -446,6 +453,9 @@ export function SettingsView() {
             <div id="service-profiles-panel" className={`settings-category-panel${activeCategory !== "service" ? " is-inactive" : ""}`}>
                 <ServiceProfiles settings={settings} appleResourcesRequest={appleResourcesRequest} profileEditorRequest={profileEditorRequest} sessionIsActive={sessionIsActive} sessionIsPaused={sessionIsPaused} sessionStatusKind={sessionStatusKind} visible={activeCategory === "service"} />
               </div>
+            <div id="copilot-settings-panel" className={`settings-category-panel${activeCategory !== "copilot" ? " is-inactive" : ""}`}>
+              {copilotVisited && <CopilotSettings visible={activeCategory === "copilot"} sessionIsActive={sessionIsActive} onOpenModels={() => selectCategory("service")} />}
+            </div>
 
             <div id="diagnostics-panel" className={`settings-category-panel${activeCategory !== "diagnostics" ? " is-inactive" : ""}`}>
               <button id="settings-diagnostics-back" type="button" className="settings-button settings-button--quiet service-back settings-diagnostics-back" onClick={() => {
@@ -590,6 +600,8 @@ function settingsCategoryFromHash(hash: string): SettingsCategory | null {
     case "network-proxy":
     case CATEGORY_SECTION_IDS.service:
       return "service";
+    case CATEGORY_SECTION_IDS.copilot:
+      return "copilot";
     case CATEGORY_SECTION_IDS.general:
       return "general";
     case CATEGORY_SECTION_IDS.export:

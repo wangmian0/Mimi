@@ -11,6 +11,31 @@ window.__TAURI_INTERNALS__ = {
   transformCallback: () => 0,
   unregisterCallback: () => {},
   invoke: async (command, args) => {
+    if (command.startsWith("copilot_")) fixture.copilotConfig ??= { enabled: false, model: null, activeScenarioId: null, scenarios: [] };
+    if (command === "copilot_config_get") return fixture.copilotConfig ?? { enabled: false, model: null, activeScenarioId: null, scenarios: [] };
+    if (command === "copilot_model_options") return fixture.copilotModels ?? [];
+    if (command === "speaker_voiceprint_status") return fixture.voiceprintStatus ?? { voiceprint: "missing", model: "missing" };
+    if (command === "copilot_config_set_enabled") { fixture.copilotConfig = { ...fixture.copilotConfig, enabled: args.enabled }; return fixture.copilotConfig; }
+    if (command === "copilot_select_model") { fixture.copilotConfig = { ...fixture.copilotConfig, model: args.model }; return fixture.copilotConfig; }
+    if (command === "copilot_scenario_create") {
+      const current = fixture.copilotConfig ?? { enabled: false, model: null, activeScenarioId: null, scenarios: [] };
+      const scenario = { id: `fixture-scenario-${current.scenarios.length}`, name: args.name, prompt: "", background: "", strategy: "" };
+      fixture.copilotConfig = { ...current, activeScenarioId: scenario.id, scenarios: [...current.scenarios, scenario] };
+      return fixture.copilotConfig;
+    }
+    if (command === "copilot_scenario_update") {
+      const current = fixture.copilotConfig;
+      fixture.copilotConfig = { ...current, scenarios: current.scenarios.map(s => s.id === args.id ? { ...s, ...args.patch } : s) };
+      return fixture.copilotConfig;
+    }
+    if (command === "copilot_scenario_select") { fixture.copilotConfig = { ...fixture.copilotConfig, activeScenarioId: args.id }; return fixture.copilotConfig; }
+    if (command === "copilot_scenario_delete") {
+      const scenarios = fixture.copilotConfig.scenarios.filter(s => s.id !== args.id);
+      fixture.copilotConfig = { ...fixture.copilotConfig, scenarios, activeScenarioId: scenarios[0]?.id ?? null };
+      return fixture.copilotConfig;
+    }
+    if (command === "speaker_voiceprint_import" || command === "speaker_voiceprint_record_stop") return fixture.voiceprintStatus ?? { voiceprint: "ready", model: "ready" };
+    if (command === "speaker_voiceprint_record_start" || command === "speaker_voiceprint_record_cancel") return;
     if (command === "get_apple_speech_support") return fixture.appleSupport ?? { available: false, languages: [] };
     if (command === "prepare_apple_speech_language") {
       window.layoutFixtureRequests.speechPrepare += 1;

@@ -8,6 +8,7 @@ interface ControlButtonProps {
   onClick: () => void;
   disabled?: boolean;
   busy?: boolean;
+  pressed?: boolean;
   "data-testid"?: string;
 }
 
@@ -18,6 +19,7 @@ export function ControlButton({
   onClick,
   disabled = false,
   busy = false,
+  pressed,
   "data-testid": dataTestId,
 }: ControlButtonProps) {
   return (
@@ -29,6 +31,7 @@ export function ControlButton({
           aria-label={label}
           aria-describedby={descriptionId}
           aria-busy={busy || undefined}
+          aria-pressed={pressed}
           disabled={disabled || busy}
           data-testid={dataTestId}
           data-hovered={hovered || undefined}

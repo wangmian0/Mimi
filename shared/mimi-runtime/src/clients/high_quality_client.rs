@@ -364,6 +364,12 @@ pub struct HighQualityTranslationClient {
 }
 
 impl HighQualityTranslationClient {
+    pub fn final_audio_range(
+        &self,
+        source_utterance_id: u64,
+    ) -> Option<super::translation_client::SourceAudioRange> {
+        self.asr_client.final_audio_range(source_utterance_id)
+    }
     pub(crate) fn network_endpoints(&self) -> (Option<url::Url>, Option<url::Url>) {
         (
             self.asr_client.network_endpoint(),

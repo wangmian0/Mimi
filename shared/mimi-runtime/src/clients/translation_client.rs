@@ -45,8 +45,11 @@ pub struct SourceAudioRange {
 }
 
 impl TranslationClient {
-    pub fn final_audio_range(&self, _source_utterance_id: u64) -> Option<SourceAudioRange> {
-        None
+    pub fn final_audio_range(&self, source_utterance_id: u64) -> Option<SourceAudioRange> {
+        match self {
+            Self::HighQuality(client) => client.final_audio_range(source_utterance_id),
+            _ => None,
+        }
     }
     /// Render the same preview policy selected by the actual runtime factory.
     pub fn uses_atomic_preview(&self) -> bool {

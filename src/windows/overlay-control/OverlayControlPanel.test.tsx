@@ -101,6 +101,22 @@ it("keeps system audio application selection and More settings without hidden in
   expect(props.onDismiss).not.toHaveBeenCalled();
 });
 
+it("offers the shared suggestion switch in the panel and reports activation failures in place", async () => {
+  const setActive = vi.fn().mockRejectedValue(new Error("private provider detail"));
+  props.copilot = { available: true, active: false, unavailableReason: null };
+  props.onSetCopilotActive = setActive;
+  await mount();
+  const button = host.querySelector<HTMLButtonElement>('[role="switch"][aria-label="AI suggestions"]')!;
+  expect(button.getAttribute("aria-checked")).toBe("false");
+  await act(async () => button.click());
+  expect(setActive).toHaveBeenCalledExactlyOnceWith(true);
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain(I18N.overlay.controlActionFailed);
+  expect(host.textContent).not.toContain("private provider detail");
+  props.copilot = { available: true, active: true, unavailableReason: null };
+  await mount();
+  expect(button.getAttribute("aria-checked")).toBe("true");
+});
+
 it("changes subtitle display without closing the panel and lets Escape close only its picker", async () => {
   await mount();
   const display = picker(I18N.settings.subtitleDisplay);

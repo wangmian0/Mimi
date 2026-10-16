@@ -30,6 +30,7 @@ const RELEASES_LATEST_URL: &str = "https://github.com/yuxino/mimi/releases/lates
 pub enum SettingsNavigationTarget {
     Service,
     Voice,
+    Copilot,
     Export,
     AppleSpeechResources,
     ActiveProfile,
@@ -1294,6 +1295,10 @@ mod tests {
 
     #[test]
     fn settings_navigation_target_accepts_only_known_sections() {
+        assert_eq!(
+            serde_json::from_str::<SettingsNavigationTarget>(r#""copilot""#).unwrap(),
+            SettingsNavigationTarget::Copilot
+        );
         assert_eq!(
             serde_json::from_str::<SettingsNavigationTarget>(r#""voice""#).unwrap(),
             SettingsNavigationTarget::Voice
