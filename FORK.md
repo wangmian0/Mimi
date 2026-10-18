@@ -24,15 +24,17 @@
 目前不提供安装包。下面的步骤会把应用装到 `/Applications/mimi-dev.app`，显示名为「Mimi Dev」，不会覆盖已安装的官方 `/Applications/mimi.app`。
 
 1. 安装 Xcode 命令行工具：`xcode-select --install`。然后运行 `xcrun --sdk macosx --show-sdk-version`，确认显示的版本号不低于 26。
-2. 安装 CMake 和 Node.js：`brew install cmake node`。Node.js 版本需为 20.19+、22.13+ 或 24+。
-3. 安装 Rust 1.88 或更高版本：`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`。
-4. 创建签名证书：打开「钥匙串访问 → 证书助理 → 创建证书」。名称填 `mimi Local Development`（必须一字不差），身份类型选「自签名根证书」，证书类型选「代码签名」，存进「登录」钥匙串。
-5. 信任这张证书：在钥匙串里双击它，把「信任 → 代码签名」设为「始终信任」。
-6. 检查证书：运行 `security find-identity -v -p codesigning`，输出里应当恰好有一个 `"mimi Local Development"`。
-7. 下载代码：`git clone -b fork-main https://github.com/wangmian0/Mimi.git mimi && cd mimi`。
-8. 安装前端依赖：`npm ci`。
-9. 退出所有正在运行的 Mimi，包括官方版。
-10. 构建并启动：`./scripts/dev-app.sh`。
+2. 安装 Homebrew：复制 [brew.sh](https://brew.sh) 首页的安装命令到终端运行。装完后，按终端最后提示的命令把 `brew` 加入 PATH，再运行 `brew --version` 确认可用。
+3. 安装 CMake 和 Node.js：`brew install cmake node`。Node.js 版本需为 20.19+、22.13+ 或 24+。
+4. 安装 Rust 1.88 或更高版本：`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`。
+5. 让终端找到 Rust：关闭并重新打开终端，或者运行 `. "$HOME/.cargo/env"`，然后运行 `cargo --version`，确认版本不低于 1.88。
+6. 创建签名证书：打开「钥匙串访问 → 证书助理 → 创建证书」。名称填 `mimi Local Development`（必须一字不差），身份类型选「自签名根证书」，证书类型选「代码签名」，存进「登录」钥匙串。
+7. 信任这张证书：在钥匙串里双击它，把「信任 → 代码签名」设为「始终信任」。
+8. 检查证书：运行 `security find-identity -v -p codesigning`，输出里应当恰好有一个 `"mimi Local Development"`。
+9. 下载代码：`git clone -b fork-main https://github.com/wangmian0/Mimi.git mimi && cd mimi`。
+10. 安装前端依赖：`npm ci`。
+11. 退出所有正在运行的 Mimi，包括官方版。
+12. 构建并启动：`./scripts/dev-app.sh`。
 
 第一次构建需要联网，会下载 Rust 依赖和 sherpa-onnx 预编译库，耗时较长。第一次签名时，系统会询问 `codesign` 能否使用 `mimi Local Development` 的私钥，选「允许」即可。
 
@@ -54,7 +56,7 @@
    | API Key（选填） | 你的 DeepSeek API Key |
 
    使用 DeepSeek 时，Mimi 会自动关闭它的思考模式，让建议出得更快。
-2. **选择麦克风**：在「声音与语言 → 音频输入」中勾选「麦克风」。提词只处理麦克风识别出的句子；同时勾选电脑声音也可以，但那一路字幕不参与提词。
+2. **选择麦克风**：在「声音与语言 → 音频输入」中打开「麦克风」。提词开启后，只有麦克风识别出的句子会打标签并触发建议。如果同时打开了「系统声音」，开启提词时作为背景发送的最近 6 句字幕里，可能有系统声音那一路的内容。
 3. **启用提词**：打开「AI 提词」页，打开「启用 AI 提词」，在「提词模型」下拉中选择第 1 步保存的配置。下拉列表为空时，点「打开模型与服务」回去检查第 1 步。
 4. **新建场景**：点「新建场景」，输入名称（例如「客服通话」），然后填写三段文字。「提示词」写你希望建议遵循的要求；「我的背景」写与你或这通电话有关的事实，比如订单号、预约时间；「应对思路」写你打算怎么谈。
 5. **录入声纹**：在同一页点「录制声纹」。按照提示，在平时打电话的位置把手机开免提并静音，用平时的音量念 20 秒以上。录到 60 秒会自动停止，也可以录满 10 秒后点「停止录制」。另一种方式是点「导入 WAV」，文件要求为 16 kHz、单声道、16 位，时长 10 到 120 秒。第一次录入时会从 GitHub 下载约 40 MB 的说话人模型，录入时不能有正在运行的字幕。
@@ -77,7 +79,7 @@
 - **发送给提词模型服务的内容**
   - 固定的英文规则和你填写的场景文字。
   - 提词开启后带「Me / Other」标签的识别文字。
-  - 开启提词前最近不超过 6 句的字幕，作为背景。
+  - 开启提词前最近不超过 6 句的字幕，作为背景。这几句不区分音源，同时开着「系统声音」时也可能包含那一路的字幕。
   - 原始音频不会发给提词服务；麦克风音频照常只发给你选择的语音识别服务。
 - **提词对话**：只保存在内存里。关闭提词、停止字幕或清空字幕时都会清空。
 - **场景文字和模型选择**：保存在应用配置目录的 `copilot.json` 中，里面没有服务地址和 API Key。API Key 仍保存在 Mimi 原有的私有凭证文件里。
