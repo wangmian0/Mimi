@@ -19,6 +19,9 @@
   </p>
 </div>
 
+> [!NOTE]
+> **这是 Mimi 的个人分支**，由 [@wangmian0](https://github.com/wangmian0) 维护，基于上游 v1.6.3，新增「AI 提词」：用免提打电话时，Mimi 在本机靠声纹分出你和对方，对方说完一句，字幕窗就给出一句可以接着说的英文和中文意思。这个功能仅支持 Apple 芯片和 macOS 26，需要从源码构建，改动和用法见 [FORK.md](FORK.md)。下文的下载和反馈链接都指向官方 [yuxino/Mimi](https://github.com/yuxino/Mimi)，官方版本不包含这些改动。
+
 ![Mimi 双语字幕示意：原创插画与示例对白](docs/assets/readme-preview.png)
 
 字幕显示示意，使用示例对白。[看字幕与沉浸模式演示（旧版界面）](docs/demos/README.md)。
