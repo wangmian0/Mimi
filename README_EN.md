@@ -21,6 +21,8 @@
 
 > [!NOTE]
 > **This is a personal fork of Mimi** maintained by [@wangmian0](https://github.com/wangmian0), based on upstream v1.6.3. It adds an "AI Copilot" for speakerphone calls: Mimi tells you and the other speaker apart with an on-device voiceprint, and after each sentence from the other speaker it suggests one English reply with a Chinese gloss. It requires Apple silicon and macOS 26 and must be built from source. See [FORK.md](FORK.md) (Simplified Chinese) for the changes and setup. The download and feedback links below point to the official [yuxino/Mimi](https://github.com/yuxino/Mimi), which does not include these changes.
+>
+> **[→ AI Copilot fork: changes and setup guide](https://github.com/wangmian0/Mimi/blob/fork-main/FORK.md)**
 
 ![Mimi bilingual subtitle illustration with fictional dialogue](docs/assets/readme-preview.png)
 
