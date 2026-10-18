@@ -13,6 +13,8 @@ pub struct RecentPcm {
     end_sample: u64,
     pcm: VecDeque<i16>,
     marks: VecDeque<(u64, Instant)>,
+    /// Sample ranges filled with synthetic silence; they are not audio evidence.
+    gaps: VecDeque<(u64, u64)>,
 }
 
 impl RecentPcm {
@@ -23,6 +25,7 @@ impl RecentPcm {
             end_sample: 0,
             pcm: VecDeque::new(),
             marks: VecDeque::new(),
+            gaps: VecDeque::new(),
         }
     }
 
@@ -36,6 +39,7 @@ impl RecentPcm {
     pub fn clear(&mut self) {
         self.pcm.clear();
         self.marks.clear();
+        self.gaps.clear();
     }
 
     pub fn push(
@@ -60,6 +64,7 @@ impl RecentPcm {
             let gap = start_sample.saturating_sub(self.end_sample);
             if start_sample > self.end_sample && gap <= self.rate as u64 && !self.pcm.is_empty() {
                 self.pcm.extend(std::iter::repeat_n(0i16, gap as usize));
+                self.gaps.push_back((self.end_sample, start_sample));
             } else {
                 self.clear();
             }
@@ -81,6 +86,9 @@ impl RecentPcm {
         while self.marks.front().is_some_and(|(end, _)| *end <= base) {
             self.marks.pop_front();
         }
+        while self.gaps.front().is_some_and(|(_, end)| *end <= base) {
+            self.gaps.pop_front();
+        }
     }
 
     pub fn bounds(&self) -> (u64, u64) {
@@ -91,6 +99,21 @@ impl RecentPcm {
     }
 
     pub fn exact(&self, generation: u64, range: SourceAudioRange) -> Option<Vec<i16>> {
+        let (start, end) = self.sample_range(generation, range)?;
+        self.samples(start, end)
+    }
+
+    /// Whether any part of the range is synthetic silence from a skipped chunk.
+    pub fn padded(&self, generation: u64, range: SourceAudioRange) -> bool {
+        self.sample_range(generation, range)
+            .is_some_and(|(start, end)| {
+                self.gaps
+                    .iter()
+                    .any(|&(gap_start, gap_end)| gap_start < end && start < gap_end)
+            })
+    }
+
+    fn sample_range(&self, generation: u64, range: SourceAudioRange) -> Option<(u64, u64)> {
         if generation != self.generation
             || !range.start_ms.is_finite()
             || !range.end_ms.is_finite()
@@ -101,7 +124,7 @@ impl RecentPcm {
         }
         let start = (range.start_ms * self.rate as f64 / 1000.0).round() as u64;
         let end = (range.end_ms * self.rate as f64 / 1000.0).round() as u64;
-        self.samples(start, end)
+        Some((start, end))
     }
 
     fn samples(&self, start: u64, end: u64) -> Option<Vec<i16>> {
@@ -186,16 +209,24 @@ mod tests {
         pcm.push(1, 0, &[1u8; 3_200], true, Instant::now());
         pcm.push(1, 3_200, &[1u8; 3_200], true, Instant::now());
         assert_eq!(pcm.bounds(), (0, 4_800));
-        let padded = pcm
-            .exact(
+        let hole = SourceAudioRange {
+            start_ms: 100.0,
+            end_ms: 200.0,
+        };
+        let padded = pcm.exact(1, hole).unwrap();
+        assert!(padded.iter().all(|sample| *sample == 0));
+        assert!(pcm.padded(1, hole));
+        for recorded in [(0.0, 100.0), (200.0, 300.0)] {
+            assert!(!pcm.padded(
                 1,
                 SourceAudioRange {
-                    start_ms: 100.0,
-                    end_ms: 200.0,
+                    start_ms: recorded.0,
+                    end_ms: recorded.1,
                 },
-            )
-            .unwrap();
-        assert!(padded.iter().all(|sample| *sample == 0));
+            ));
+        }
+        pcm.push(1, 4_800, &[1u8; 3_200], false, Instant::now());
+        assert!(!pcm.padded(1, hole));
     }
 
     #[test]

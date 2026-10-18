@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 const QUIET_OTHER_RMS: f32 = 0.01; // -40 dBFS
+const SILENT_RMS: f32 = 0.0001; // -80 dBFS: digital silence, not a quiet voice
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -230,7 +231,7 @@ impl SpeakerService {
                 tracing::info!(reason = "model_missing", "speaker_unknown");
                 return unknown();
             };
-            let (pcm, rate, basis) = {
+            let (pcm, rate, basis, padded) = {
                 let Ok(recent) = self.pcm.lock() else {
                     return unknown();
                 };
@@ -243,10 +244,15 @@ impl SpeakerService {
                     rate = recent.rate(),
                     "speaker_lookup"
                 );
-                if let Some(exact) = range.and_then(|range| recent.exact(generation, range)) {
-                    (exact, recent.rate(), SpeakerBasis::AudioRange)
+                if let Some((exact, padded)) = range.and_then(|range| {
+                    Some((
+                        recent.exact(generation, range)?,
+                        recent.padded(generation, range),
+                    ))
+                }) {
+                    (exact, recent.rate(), SpeakerBasis::AudioRange, padded)
                 } else if let Some(fallback) = recent.recent_voice(generation, confirmed_at) {
-                    (fallback, recent.rate(), SpeakerBasis::RecentVoice)
+                    (fallback, recent.rate(), SpeakerBasis::RecentVoice, false)
                 } else {
                     tracing::info!(reason = "no_audio", "speaker_unknown");
                     return unknown();
@@ -274,7 +280,7 @@ impl SpeakerService {
             drop(pcm);
             if voiced_ms < 1_000 {
                 return SpeakerVerdict {
-                    label: quiet_speech_label(peak_rms),
+                    label: quiet_speech_label(peak_rms, padded),
                     voiced_ms,
                     basis,
                     ..unknown()
@@ -795,9 +801,10 @@ fn enroll(model: &embedding::SpeakerEmbedding, wav: Vec<i16>) -> Result<SavedVoi
 
 /// Mic-only calls: the owner talks close to the Mac, so recognised speech that
 /// never rises above the voice gate came through the phone speaker. Short but
-/// loud fragments (the owner's "Okay") stay undecided.
-fn quiet_speech_label(peak_rms: f32) -> SpeakerLabel {
-    if peak_rms < QUIET_OTHER_RMS {
+/// loud fragments (the owner's "Okay") stay undecided, as do ranges with
+/// padded or digitally silent audio, which carry no evidence of who spoke.
+fn quiet_speech_label(peak_rms: f32, padded: bool) -> SpeakerLabel {
+    if !padded && (SILENT_RMS..QUIET_OTHER_RMS).contains(&peak_rms) {
         SpeakerLabel::Other
     } else {
         SpeakerLabel::Unknown
@@ -810,8 +817,15 @@ mod tests {
 
     #[test]
     fn quiet_recognised_speech_is_the_other_party() {
-        assert_eq!(quiet_speech_label(0.003), SpeakerLabel::Other);
-        assert_eq!(quiet_speech_label(0.04), SpeakerLabel::Unknown);
+        assert_eq!(quiet_speech_label(0.003, false), SpeakerLabel::Other);
+        assert_eq!(quiet_speech_label(0.04, false), SpeakerLabel::Unknown);
+    }
+
+    #[test]
+    fn padded_or_silent_audio_is_not_the_other_party() {
+        assert_eq!(quiet_speech_label(0.003, true), SpeakerLabel::Unknown);
+        assert_eq!(quiet_speech_label(0.0, false), SpeakerLabel::Unknown);
+        assert_eq!(quiet_speech_label(0.0, true), SpeakerLabel::Unknown);
     }
 
     #[tokio::test]
