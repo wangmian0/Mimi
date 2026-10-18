@@ -2051,7 +2051,7 @@ fn apply_settings_draft_guarded(
         crate::refresh_native_tray_language(app);
     }
 
-    refresh_copilot_availability(&app);
+    refresh_copilot_availability(app);
     let payload = SettingsSnapshotPayload::try_from_store(&state.settings)?;
     let _ = app.emit("settings-changed", payload.clone());
     Ok(payload)
