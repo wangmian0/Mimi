@@ -9,6 +9,7 @@ Mimi is a Tauri v2 desktop app (Rust backend + React/TypeScript frontend) that l
 - Keep at most 30 seconds of microphone PCM in memory only while AI copilot is active; never persist it or include it in diagnostics or exports.
 - Store voiceprint and speaker model files under `app_data_dir/speaker/` with 0700 directories and 0600 files.
 - Do not require Android parity or an upstream pull request for this fork's AI copilot.
+- Package this fork as `Mimi Copilot` (`io.github.wangmian0.mimi-copilot`) so it installs beside official Mimi. It never reads, imports or retires upstream Mimi's native credentials. The development build keeps `app.yuxino.mimi.dev`.
 
 Preserve these product constraints:
 

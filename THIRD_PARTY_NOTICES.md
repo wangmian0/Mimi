@@ -25,10 +25,16 @@ The vendored `aec-rs-sys` SpeexDSP build renames its fixed-point KISS FFT
 symbols with an `spx_` prefix. This isolates it from sherpa-onnx's
 floating-point KISS FFT. Its existing notices remain below.
 
-The sherpa static archive also contains ONNX Runtime, Copyright (c) Microsoft
-Corporation, under the MIT license. Its [license](https://github.com/microsoft/onnxruntime/blob/main/LICENSE)
-and [component notices](https://github.com/microsoft/onnxruntime/blob/main/ThirdPartyNotices.txt)
-are maintained upstream; the MIT terms are reproduced in this file below.
+The sherpa static archive also contains ONNX Runtime 1.28.2, Copyright (c)
+Microsoft Corporation, under the MIT license; the MIT terms are reproduced in
+this file below. Its component notices are shipped verbatim as
+`ONNXRUNTIME_THIRD_PARTY_NOTICES.txt` next to this file in the macOS app, and
+as `third_party/onnxruntime/` (license and notices) in the source tree.
+
+Other code from that archive linked into the app: kaldi-native-fbank and
+kaldi-decoder (Apache-2.0, Xiaomi Corporation), OpenFst (Apache-2.0, Google),
+the piper-phonemize lexicon table (MIT, Michael Hansen) and KISS FFT
+(BSD-3-Clause, Mark Borgerding). Their license terms are reproduced below.
 
 ## tauri-nspanel
 

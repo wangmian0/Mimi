@@ -36,6 +36,10 @@ use std::sync::Mutex;
 
 pub const PROFILE_KEYCHAIN_SERVICE: &str = "app.yuxino.mimi.credentials.profiles";
 pub const DEVELOPMENT_APPLICATION_IDENTIFIER: &str = "app.yuxino.mimi.dev";
+/// This fork's release identity. It must never read or retire upstream Mimi's
+/// native credentials, so it has its own service and no legacy import.
+pub const FORK_APPLICATION_IDENTIFIER: &str = "io.github.wangmian0.mimi-copilot";
+const FORK_PROFILE_KEYCHAIN_SERVICE: &str = "io.github.wangmian0.mimi-copilot.credentials.profiles";
 // Metadata compatibility only: these IDs no longer select a credential source.
 const LEGACY_ENV_ALIBABA_PROFILE_ID: &str = "alibaba-local-dev";
 const LEGACY_ENV_GEMINI_PROFILE_ID: &str = "gemini-local-dev";
@@ -756,18 +760,23 @@ pub struct SettingsStore {
     ui_test_preferences_writable: bool,
 }
 
+/// Native credential service and whether this identity may import upstream
+/// Mimi's legacy native items.
+fn credential_scope(application_identifier: &str) -> (&'static str, bool) {
+    match application_identifier {
+        DEVELOPMENT_APPLICATION_IDENTIFIER => (DEVELOPMENT_PROFILE_KEYCHAIN_SERVICE, false),
+        FORK_APPLICATION_IDENTIFIER => (FORK_PROFILE_KEYCHAIN_SERVICE, false),
+        _ => (PROFILE_KEYCHAIN_SERVICE, true),
+    }
+}
+
 impl SettingsStore {
     /// Loads preferences and `service-profiles.json` from the app config
     /// directory. New installations start with an empty catalog; existing
     /// pre-catalog preferences retain legacy migration. Malformed data is
     /// preserved and profile writes are blocked until it is repaired.
     pub fn load(app_config_dir: PathBuf, is_ui_test: bool, application_identifier: &str) -> Self {
-        let is_development = application_identifier == DEVELOPMENT_APPLICATION_IDENTIFIER;
-        let profile_keychain_service = if is_development {
-            DEVELOPMENT_PROFILE_KEYCHAIN_SERVICE
-        } else {
-            PROFILE_KEYCHAIN_SERVICE
-        };
+        let (profile_keychain_service, imports_legacy) = credential_scope(application_identifier);
         if is_ui_test {
             return Self::load_with_secret(
                 app_config_dir,
@@ -781,7 +790,7 @@ impl SettingsStore {
             Box::new(file_credentials::FileCredentialStore::for_app(
                 &app_config_dir,
                 profile_keychain_service,
-                !is_development,
+                imports_legacy,
             ));
         // One-time upgrade work. Each completed slot is persisted before the
         // next native read. Steady-state windows use only the local file.
@@ -794,7 +803,7 @@ impl SettingsStore {
             is_ui_test,
             secret,
             profile_keychain_service,
-            !is_development && !is_file_mode,
+            imports_legacy && !is_file_mode,
         )
     }
 
@@ -10700,6 +10709,25 @@ mod tests {
             )
             .as_deref(),
             Some("sk-release-profile")
+        );
+    }
+
+    #[test]
+    fn only_the_upstream_identity_imports_upstream_native_credentials() {
+        for identifier in [
+            FORK_APPLICATION_IDENTIFIER,
+            DEVELOPMENT_APPLICATION_IDENTIFIER,
+        ] {
+            let (service, imports_legacy) = credential_scope(identifier);
+            assert!(!imports_legacy);
+            assert_ne!(service, PROFILE_KEYCHAIN_SERVICE);
+        }
+        assert!(!credential_scope(FORK_APPLICATION_IDENTIFIER)
+            .0
+            .starts_with("app.yuxino.mimi"));
+        assert_eq!(
+            credential_scope("app.yuxino.mimi"),
+            (PROFILE_KEYCHAIN_SERVICE, true)
         );
     }
 

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "mimi",
+  "productName": "Mimi Copilot",
   "version": "1.6.3",
-  "identifier": "app.yuxino.mimi",
+  "identifier": "io.github.wangmian0.mimi-copilot",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -35,7 +35,8 @@
     "targets": "all",
     "category": "Utility",
     "resources": {
-      "../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md"
+      "../THIRD_PARTY_NOTICES.md": "THIRD_PARTY_NOTICES.md",
+      "../third_party/onnxruntime/ThirdPartyNotices.txt": "ONNXRUNTIME_THIRD_PARTY_NOTICES.txt"
     },
     "shortDescription": "Live translated subtitles for anything playing on your device.",
     "longDescription": "Turn Chinese, Japanese, English, or Korean audio playing on your device into live subtitles, with optional translation into Simplified Chinese, English, or Japanese.",

@@ -1520,6 +1520,16 @@ mod tests {
     }
 
     #[test]
+    fn release_tauri_config_uses_the_fork_identifier() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert_eq!(
+            config["identifier"].as_str(),
+            Some(settings_store::FORK_APPLICATION_IDENTIFIER)
+        );
+    }
+
+    #[test]
     fn windows_tray_asset_contains_visible_colour_pixels() {
         let windows_icon = tauri::image::Image::from_bytes(tray_icon_bytes(true)).unwrap();
         let template_icon = tauri::image::Image::from_bytes(tray_icon_bytes(false)).unwrap();

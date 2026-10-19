@@ -22,6 +22,7 @@ RELEASE_TAURI_CONFIG="$PROJECT_DIR/src-tauri/tauri.conf.json"
 CANONICAL_APP="${MIMI_DEV_APP_PATH:-/Applications/mimi-dev.app}"
 BUNDLE_IDENTIFIER="app.yuxino.mimi.dev"
 RELEASE_BUNDLE_IDENTIFIER="app.yuxino.mimi"
+FORK_BUNDLE_IDENTIFIER="io.github.wangmian0.mimi-copilot"
 MODE="live"
 SHOULD_LAUNCH=1
 WATCH=0
@@ -175,7 +176,8 @@ running_conflicting_mimi_processes() {
         "$app_bundle/Contents/Info.plist" 2>/dev/null || true
     )"
     if [[ "$bundle_identifier" == "$BUNDLE_IDENTIFIER" \
-      || "$bundle_identifier" == "$RELEASE_BUNDLE_IDENTIFIER" ]]; then
+      || "$bundle_identifier" == "$RELEASE_BUNDLE_IDENTIFIER" \
+      || "$bundle_identifier" == "$FORK_BUNDLE_IDENTIFIER" ]]; then
       printf '%s\t%s\n' "$pid" "$executable"
     fi
   done < <(/usr/bin/pgrep -U "$(id -u)" -x mimi || true)

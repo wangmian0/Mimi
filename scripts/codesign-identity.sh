@@ -47,7 +47,7 @@ IDENTITY_LIST="$(security find-identity -v -p codesigning 2>/dev/null || true)"
 if [[ "$DEVELOPMENT" == "1" ]]; then
   LOCAL_IDENTITY_FILE="${MIMI_DEV_CODESIGN_IDENTITY_FILE:-$HOME/Library/Application Support/app.yuxino.mimi.dev/local-codesign-identity.txt}"
 else
-  LOCAL_IDENTITY_FILE="${MIMI_LOCAL_CODESIGN_IDENTITY_FILE:-$HOME/Library/Application Support/app.yuxino.mimi/local-codesign-identity.txt}"
+  LOCAL_IDENTITY_FILE="${MIMI_LOCAL_CODESIGN_IDENTITY_FILE:-$HOME/Library/Application Support/io.github.wangmian0.mimi-copilot/local-codesign-identity.txt}"
 fi
 if [[ -e "$LOCAL_IDENTITY_FILE" || -L "$LOCAL_IDENTITY_FILE" ]]; then
   [[ -f "$LOCAL_IDENTITY_FILE" && ! -L "$LOCAL_IDENTITY_FILE" ]] || {

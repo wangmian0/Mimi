@@ -7,6 +7,7 @@ usage() {
 }
 
 RELEASE=0
+EXPECTED_IDENTIFIER="io.github.wangmian0.mimi-copilot"
 case "${1:-}" in
   --release)
     RELEASE=1
@@ -40,7 +41,7 @@ SCREEN_USAGE="$(read_plist NSScreenCaptureUsageDescription)"
 AUDIO_USAGE="$(read_plist NSAudioCaptureUsageDescription)"
 MICROPHONE_USAGE="$(read_plist NSMicrophoneUsageDescription || true)"
 
-[[ "$IDENTIFIER" == "app.yuxino.mimi" ]] || {
+[[ "$IDENTIFIER" == "$EXPECTED_IDENTIFIER" ]] || {
   echo "Unexpected bundle identifier: $IDENTIFIER" >&2
   exit 1
 }
@@ -75,8 +76,8 @@ REQUIREMENT="$(
   codesign --display --requirements - "$APP" 2>&1 \
     | sed -n 's/^#*[[:space:]]*designated => //p'
 )"
-grep -Fq "Identifier=app.yuxino.mimi" <<<"$SIGNATURE_DETAILS" || {
-  echo "The signing identifier is not app.yuxino.mimi." >&2
+grep -Fq "Identifier=$EXPECTED_IDENTIFIER" <<<"$SIGNATURE_DETAILS" || {
+  echo "The signing identifier is not $EXPECTED_IDENTIFIER." >&2
   exit 1
 }
 if { \
@@ -93,7 +94,7 @@ if [[ "$RELEASE" == "1" ]]; then
     echo "Invalid pinned macOS release certificate fingerprint." >&2
     exit 1
   }
-  expected="identifier \"app.yuxino.mimi\" and certificate root = H\"$fingerprint\""
+  expected="identifier \"$EXPECTED_IDENTIFIER\" and certificate root = H\"$fingerprint\""
   codesign --verify --strict -R "=$expected" "$APP"
   # Pin the entire requirement too: a build-specific extra condition would
   # pass the certificate check but still break TCC continuity.

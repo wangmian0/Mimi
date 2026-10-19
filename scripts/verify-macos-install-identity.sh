@@ -45,7 +45,7 @@ designated_requirement() {
 
 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/verify-macos-app.sh" "$NEW_APP"
 NEW_IDENTIFIER="$(bundle_identifier "$NEW_APP")"
-[[ "$NEW_IDENTIFIER" == "app.yuxino.mimi" ]] || {
+[[ "$NEW_IDENTIFIER" == "io.github.wangmian0.mimi-copilot" ]] || {
   echo "The new app is not the formal mimi bundle: $NEW_IDENTIFIER" >&2
   exit 1
 }

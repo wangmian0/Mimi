@@ -20,7 +20,7 @@
 </div>
 
 > [!NOTE]
-> **这是 Mimi 的个人分支**，由 [@wangmian0](https://github.com/wangmian0) 维护，基于上游 v1.6.3，新增「AI 提词」：用免提打电话时，Mimi 在本机靠声纹分出你和对方，对方说完一句，字幕窗就给出一句可以接着说的英文和中文意思。这个功能仅支持 Apple 芯片和 macOS 26，需要从源码构建，改动和用法见 [FORK.md](FORK.md)。下文的下载和反馈链接都指向官方 [yuxino/Mimi](https://github.com/yuxino/Mimi)，官方版本不包含这些改动。
+> **这是 Mimi 的个人分支**，由 [@wangmian0](https://github.com/wangmian0) 维护，基于上游 v1.6.3，新增「AI 提词」：用免提打电话时，Mimi 在本机靠声纹分出你和对方，对方说完一句，字幕窗就给出一句可以接着说的英文和中文意思。这个功能仅支持 Apple 芯片和 macOS 26，可以在 [Releases](https://github.com/wangmian0/Mimi/releases/latest) 下载安装包「Mimi Copilot」，它能和官方版同时安装。改动和用法见 [FORK.md](FORK.md)。下文的下载和反馈链接都指向官方 [yuxino/Mimi](https://github.com/yuxino/Mimi)，官方版本不包含这些改动。
 >
 > **[→ AI 提词分支：改动与使用说明](https://github.com/wangmian0/Mimi/blob/fork-main/FORK.md)**
 

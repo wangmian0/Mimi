@@ -88,12 +88,12 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     }
     echo "Verified package architecture: $ACTUAL_ARCH"
   fi
-  if [[ -e /Applications/mimi.app ]]; then
+  if [[ -e "/Applications/Mimi Copilot.app" ]]; then
     cat <<EOF
-An existing /Applications/mimi.app was left untouched. This package uses
-a stable identity. Older ad-hoc GitHub releases have a different identity. Before any deliberate replacement, run:
+An existing /Applications/Mimi Copilot.app was left untouched. Before any
+deliberate replacement, run:
 
-  ./scripts/verify-macos-install-identity.sh "$APP" /Applications/mimi.app
+  ./scripts/verify-macos-install-identity.sh "$APP" "/Applications/Mimi Copilot.app"
 EOF
   fi
   cat <<EOF

@@ -8,7 +8,7 @@ mkdir -p "$TEST_ROOT/bin" "$TEST_ROOT/mimi.app/Contents"
 cat > "$TEST_ROOT/mimi.app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0"><dict>
-<key>CFBundleIdentifier</key><string>app.yuxino.mimi</string>
+<key>CFBundleIdentifier</key><string>io.github.wangmian0.mimi-copilot</string>
 <key>NSScreenCaptureUsageDescription</key><string>System audio</string>
 <key>NSAudioCaptureUsageDescription</key><string>System audio</string>
 <key>NSMicrophoneUsageDescription</key><string>Optional microphone input</string>
@@ -35,7 +35,7 @@ case "$*" in
       printf '[Dict]\n  [Key] com.apple.security.device.audio-input\n  [Value]\n    [Bool] true\n'
     fi ;;
   *--requirements*) printf 'designated => %s\n' "$TEST_REQUIREMENT" ;;
-  *) printf 'Identifier=app.yuxino.mimi\nSignature=%s\n' "${TEST_SIGNATURE:-signed}" ;;
+  *) printf 'Identifier=io.github.wangmian0.mimi-copilot\nSignature=%s\n' "${TEST_SIGNATURE:-signed}" ;;
 esac
 STUB
 cat > "$TEST_ROOT/bin/security" <<'STUB'
@@ -52,7 +52,7 @@ export PATH="$TEST_ROOT/bin:$PATH"
 export MIMI_LOCAL_CODESIGN_IDENTITY_FILE="$TEST_ROOT/local-identity.txt"
 export MIMI_DEV_CODESIGN_IDENTITY_FILE="$TEST_ROOT/dev-identity.txt"
 PIN="$(tr -d '[:space:]' < "$SCRIPT_DIR/macos-release-identity.txt")"
-export TEST_REQUIREMENT="identifier \"app.yuxino.mimi\" and certificate root = H\"${PIN}\""
+export TEST_REQUIREMENT="identifier \"io.github.wangmian0.mimi-copilot\" and certificate root = H\"${PIN}\""
 expect_failure() {
   if "$@" >"$TEST_ROOT/output" 2>&1; then
     echo "Expected rejection: $*" >&2
@@ -92,7 +92,7 @@ grep -Fq 'NSMicrophoneUsageDescription must not be empty.' "$TEST_ROOT/output"
 expect_failure env TEST_VERIFY_EXIT=1 "$SCRIPT_DIR/verify-macos-app.sh" --release "$TEST_ROOT/mimi.app"
 expect_failure env TEST_SIGNATURE=adhoc "$SCRIPT_DIR/verify-macos-app.sh" --release "$TEST_ROOT/mimi.app"
 expect_failure env TEST_REQUIREMENT='cdhash H"123"' "$SCRIPT_DIR/verify-macos-app.sh" --release "$TEST_ROOT/mimi.app"
-expect_failure env TEST_REQUIREMENT='identifier "app.yuxino.mimi" and certificate root = H"0000000000000000000000000000000000000000"' "$SCRIPT_DIR/verify-macos-app.sh" --release "$TEST_ROOT/mimi.app"
+expect_failure env TEST_REQUIREMENT='identifier "io.github.wangmian0.mimi-copilot" and certificate root = H"0000000000000000000000000000000000000000"' "$SCRIPT_DIR/verify-macos-app.sh" --release "$TEST_ROOT/mimi.app"
 expect_failure env TEST_REQUIREMENT="$TEST_REQUIREMENT and cdhash H\"123\"" "$SCRIPT_DIR/verify-macos-app.sh" --release "$TEST_ROOT/mimi.app"
 expect_failure env MIMI_CODESIGN_IDENTITY=- "$SCRIPT_DIR/codesign-identity.sh"
 expect_failure env MIMI_CODESIGN_IDENTITY= TEST_IDENTITIES= "$SCRIPT_DIR/codesign-identity.sh"
