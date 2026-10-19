@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key>
-  <string>Mimi</string>
+  <string>Mimi Copilot</string>
   <key>CFBundleDisplayName</key>
-  <string>Mimi</string>
+  <string>Mimi Copilot</string>
   <key>NSScreenCaptureUsageDescription</key>
   <string>Mimi uses Screen &amp; System Audio Recording access for selected-application audio and system audio on older macOS versions. It never records the screen.</string>
   <key>NSAudioCaptureUsageDescription</key>
