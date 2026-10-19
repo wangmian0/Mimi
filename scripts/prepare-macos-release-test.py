@@ -12,7 +12,7 @@ SCRIPTS = Path(__file__).resolve().parent
 
 
 class ReleasePreparationTests(unittest.TestCase):
-    def prepare(self, failure=""):
+    def prepare(self, failure="", identifier="app.yuxino.mimi"):
         with tempfile.TemporaryDirectory(prefix="mimi release test ") as temporary:
             root = Path(temporary)
             scripts = root / "scripts"
@@ -20,6 +20,9 @@ class ReleasePreparationTests(unittest.TestCase):
             (root / "src-tauri").mkdir()
             (root / "src-tauri/Info.plist").write_text(
                 '<?xml version="1.0"?><plist version="1.0"><dict/></plist>'
+            )
+            (root / "src-tauri/tauri.conf.json").write_text(
+                '{\n  "identifier": "%s"\n}\n' % identifier
             )
             for name in ("prepare-macos-release.sh", "extract-macos-updater.py"):
                 shutil.copy2(SCRIPTS / name, scripts / name)
@@ -79,7 +82,8 @@ shutil.copy2(config["bundle"]["macOS"]["infoPlist"], app / "Info.plist")
                        TMPDIR=str(root))
             result = subprocess.run(["bash", str(scripts / "prepare-macos-release.sh")],
                                     cwd=root, env=env, capture_output=True, text=True, timeout=30)
-            calls = [json.loads(line) for line in (root / "calls.jsonl").read_text().splitlines()]
+            log = root / "calls.jsonl"
+            calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
             archives = list((root / "output").rglob("*.tar.gz"))
             return result, calls, len(archives)
 
@@ -91,6 +95,13 @@ shutil.copy2(config["bundle"]["macOS"]["infoPlist"], app / "Info.plist")
         self.assertNotIn("--target", calls[1])
         self.assertIn("x86_64-apple-darwin", calls[2])
         self.assertEqual(archives, 2)
+
+    def test_fork_identity_refuses_the_upstream_release_pipeline(self):
+        result, calls, archives = self.prepare(identifier="io.github.wangmian0.mimi-copilot")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("package-app.sh", result.stderr)
+        self.assertEqual(calls, [])
+        self.assertEqual(archives, 0)
 
     def test_frontend_failure_prevents_any_native_build(self):
         result, calls, archives = self.prepare("frontend")

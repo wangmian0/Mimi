@@ -72,9 +72,11 @@ echo "Bundle produced under: $BUNDLE_DIR"
 find "$BUNDLE_DIR" -maxdepth 2 \( -name "*.app" -o -name "*.dmg" -o -name "*.msi" -o -name "*.exe" \) -print 2>/dev/null || true
 
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  APP="$(find "$BUNDLE_DIR" -maxdepth 3 -name "*.app" -type d | head -1 || true)"
-  [[ -n "$APP" ]] || {
-    echo "macOS app bundle was not produced." >&2
+  # Select this configuration's bundle; an older product name may remain cached.
+  PRODUCT_NAME="$(/usr/bin/plutil -extract productName raw -o - src-tauri/tauri.conf.json)"
+  APP="$BUNDLE_DIR/macos/$PRODUCT_NAME.app"
+  [[ -d "$APP" ]] || {
+    echo "macOS app bundle was not produced: $APP" >&2
     exit 1
   }
   "$SCRIPT_DIR/verify-macos-app.sh" "$APP"

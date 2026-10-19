@@ -7,6 +7,12 @@ set -euo pipefail
 }
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 cd "$SCRIPT_DIR/.."
+# Upstream's signed updater pipeline needs upstream's signing and updater keys.
+# The Mimi Copilot fork is packaged with ./scripts/package-app.sh instead.
+grep -Fq '"identifier": "app.yuxino.mimi"' src-tauri/tauri.conf.json || {
+  echo "This checkout is not the upstream mimi release; use ./scripts/package-app.sh." >&2
+  exit 1
+}
 [[ -z "$(git status --porcelain)" ]] || {
   echo "Commit the reviewed release source before preparing signed assets." >&2
   exit 1
